@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://vet-clinic-api-production-b637.up.railway.app/api/:path*" }
+  ]
+}
