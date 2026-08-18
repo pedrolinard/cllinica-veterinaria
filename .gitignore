@@ -27,7 +27,11 @@ out/
 
 ### Environment ###
 .env
+.env.local
 *.log
+
+### Vercel ###
+.vercel
 
 ### OS ###
 .DS_Store
