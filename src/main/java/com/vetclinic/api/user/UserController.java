@@ -42,6 +42,13 @@ public class UserController {
         return ResponseEntity.ok(userService.findAll());
     }
 
+    @GetMapping("/vets")
+    @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")
+    @Operation(summary = "Lista os veterinários (para seleção ao agendar consultas)")
+    public ResponseEntity<List<UserResponse>> findVets() {
+        return ResponseEntity.ok(userService.findVets());
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Busca um funcionário pelo id")
     public ResponseEntity<UserResponse> findById(@PathVariable UUID id) {

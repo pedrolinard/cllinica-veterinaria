@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vet Clinic API — Painel</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<div id="toast-container" class="toast-container"></div>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-screen hidden">
+  <div class="login-card">
+    <h1>Vet Clinic</h1>
+    <p class="sub">Entre com sua conta da clínica para continuar.</p>
+
+    <div id="login-error"></div>
+
+    <form id="login-form">
+      <div class="field">
+        <label for="login-email">Email</label>
+        <input type="email" id="login-email" required autocomplete="username" />
+      </div>
+      <div class="field">
+        <label for="login-password">Senha</label>
+        <input type="password" id="login-password" required autocomplete="current-password" />
+      </div>
+      <button type="submit" class="btn btn-primary" id="login-submit">Entrar</button>
+    </form>
+
+    <div class="demo-creds">
+      <div>Contas de demonstração (clique para preencher):</div>
+      <div data-email="admin@vetclinic.com" data-password="admin123">ADMIN — <code>admin@vetclinic.com</code> / <code>admin123</code></div>
+      <div data-email="vet@vetclinic.com" data-password="vet12345">VET — <code>vet@vetclinic.com</code> / <code>vet12345</code></div>
+      <div data-email="recepcao@vetclinic.com" data-password="recep1234">RECEPTIONIST — <code>recepcao@vetclinic.com</code> / <code>recep1234</code></div>
+    </div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-shell" class="app-shell hidden">
+  <aside class="sidebar">
+    <div class="brand">Vet Clinic</div>
+    <div class="brand-sub">Painel administrativo</div>
+
+    <nav id="nav-list"></nav>
+
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <span class="name" id="current-user-name"></span>
+        <span class="role" id="current-user-role"></span>
+      </div>
+      <button class="btn btn-secondary btn-sm" id="logout-btn" style="width:100%">Sair</button>
+    </div>
+  </aside>
+
+  <main class="main" id="main-content"></main>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

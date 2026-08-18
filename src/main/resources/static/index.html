@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Vet Clinic API</title>
+<style>
+  :root {
+    --bg: #0b1120;
+    --bg-soft: #111a2e;
+    --card: #151f38;
+    --border: #22304f;
+    --text: #e7ecf7;
+    --text-dim: #9aa7c2;
+    --accent: #5eead4;
+    --accent-2: #7c9cff;
+    --admin: #f2b8ff;
+    --vet: #7fe0a8;
+    --recep: #ffd27f;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background:
+      radial-gradient(circle at 15% -10%, rgba(94,234,212,0.12), transparent 40%),
+      radial-gradient(circle at 90% 0%, rgba(124,156,255,0.14), transparent 45%),
+      var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 64px 24px 32px;
+    text-align: center;
+  }
+
+  .badge {
+    display: inline-block;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: rgba(94,234,212,0.1);
+    border: 1px solid rgba(94,234,212,0.35);
+    padding: 4px 12px;
+    border-radius: 999px;
+    margin-bottom: 20px;
+  }
+
+  h1 {
+    font-size: clamp(32px, 5vw, 48px);
+    margin: 0 0 12px;
+    background: linear-gradient(90deg, var(--text), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .subtitle {
+    color: var(--text-dim);
+    font-size: 17px;
+    max-width: 640px;
+    margin: 0 auto 32px;
+  }
+
+  .cta {
+    display: flex;
+    gap: 14px;
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    padding: 12px 24px;
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 15px;
+    border: 1px solid transparent;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+  .btn:hover { transform: translateY(-2px); text-decoration: none; }
+
+  .btn-primary {
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    color: #04121a;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--text);
+  }
+  .btn-secondary:hover { border-color: var(--accent-2); }
+
+  main {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 24px 24px 80px;
+  }
+
+  section { margin-top: 56px; }
+
+  h2 {
+    font-size: 22px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  h2::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: inline-block;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+  }
+
+  .card h3 {
+    margin: 0 0 8px;
+    font-size: 16px;
+    color: var(--text);
+  }
+
+  .card p {
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 14px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+
+  th, td {
+    text-align: left;
+    padding: 12px 16px;
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    background: var(--bg-soft);
+    color: var(--text-dim);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 12px;
+    letter-spacing: 0.05em;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  code {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--accent);
+  }
+
+  .role-pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .role-admin { background: rgba(242,184,255,0.12); color: var(--admin); }
+  .role-vet { background: rgba(127,224,168,0.12); color: var(--vet); }
+  .role-recep { background: rgba(255,210,127,0.12); color: var(--recep); }
+
+  .stack-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .tag {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+
+  footer {
+    text-align: center;
+    padding: 32px 24px 48px;
+    color: var(--text-dim);
+    font-size: 13px;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 600px) {
+    header { padding: 48px 20px 24px; }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tr { border-bottom: 1px solid var(--border); padding: 10px 0; }
+    td { border: none; padding: 4px 16px; }
+    td::before {
+      content: attr(data-label);
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 2px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="badge">API REST · Portfólio</span>
+  <h1>Vet Clinic API</h1>
+  <p class="subtitle">
+    Gestão de clínica veterinária: autenticação JWT, controle de acesso por papéis,
+    agendamento de consultas com validação de conflito de horário e prontuários médicos.
+  </p>
+  <div class="cta">
+    <a class="btn btn-primary" href="/app/index.html">Abrir sistema</a>
+    <a class="btn btn-secondary" href="/docs">Documentação (Swagger)</a>
+    <a class="btn btn-secondary" href="https://github.com/pedrolinard/cllinica-veterinaria" target="_blank" rel="noopener">Ver no GitHub</a>
+  </div>
+</header>
+
+<main>
+
+  <section>
+    <h2>Funcionalidades</h2>
+    <div class="grid">
+      <div class="card">
+        <h3>Autenticação &amp; papéis</h3>
+        <p>Login com JWT e três papéis: ADMIN, VET (veterinário) e RECEPTIONIST.</p>
+      </div>
+      <div class="card">
+        <h3>Clientes &amp; pets</h3>
+        <p>Cadastro de tutores e seus pets, com relacionamento 1:N e paginação.</p>
+      </div>
+      <div class="card">
+        <h3>Agendamento</h3>
+        <p>Consultas com validação de conflito de horário por veterinário e transições de status controladas.</p>
+      </div>
+      <div class="card">
+        <h3>Prontuários médicos</h3>
+        <p>Vinculados a consultas concluídas — só é possível registrar após status COMPLETED.</p>
+      </div>
+      <div class="card">
+        <h3>Catálogo de serviços</h3>
+        <p>Consulta, vacinação, banho e tosa, e outros serviços da clínica.</p>
+      </div>
+      <div class="card">
+        <h3>Documentação viva</h3>
+        <p>OpenAPI/Swagger navegável, com autenticação Bearer testável direto na UI.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Stack</h2>
+    <div class="stack-tags">
+      <span class="tag">Java 21</span>
+      <span class="tag">Spring Boot 3.3</span>
+      <span class="tag">Spring Security + JWT</span>
+      <span class="tag">Spring Data JPA</span>
+      <span class="tag">H2 (dev) / PostgreSQL (prod)</span>
+      <span class="tag">springdoc-openapi</span>
+      <span class="tag">JUnit 5 + MockMvc</span>
+      <span class="tag">Docker</span>
+    </div>
+  </section>
+
+  <section>
+    <h2>Credenciais de demonstração</h2>
+    <table>
+      <thead>
+        <tr><th>Papel</th><th>Email</th><th>Senha</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-label="Papel"><span class="role-pill role-admin">ADMIN</span></td>
+          <td data-label="Email"><code>admin@vetclinic.com</code></td>
+          <td data-label="Senha"><code>admin123</code></td>
+        </tr>
+        <tr>
+          <td data-label="Papel"><span class="role-pill role-vet">VET</span></td>
+          <td data-label="Email"><code>vet@vetclinic.com</code></td>
+          <td data-label="Senha"><code>vet12345</code></td>
+        </tr>
+        <tr>
+          <td data-label="Papel"><span class="role-pill role-recep">RECEPTIONIST</span></td>
+          <td data-label="Email"><code>recepcao@vetclinic.com</code></td>
+          <td data-label="Senha"><code>recep1234</code></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>Principais endpoints</h2>
+    <table>
+      <thead>
+        <tr><th>Método</th><th>Rota</th><th>Descrição</th></tr>
+      </thead>
+      <tbody>
+        <tr><td data-label="Método">POST</td><td data-label="Rota"><code>/api/auth/login</code></td><td data-label="Descrição">Autentica e retorna o JWT</td></tr>
+        <tr><td data-label="Método">GET</td><td data-label="Rota"><code>/api/auth/me</code></td><td data-label="Descrição">Dados do usuário autenticado</td></tr>
+        <tr><td data-label="Método">CRUD</td><td data-label="Rota"><code>/api/clients</code></td><td data-label="Descrição">Tutores</td></tr>
+        <tr><td data-label="Método">CRUD</td><td data-label="Rota"><code>/api/pets</code></td><td data-label="Descrição">Pets (filtro <code>?clientId=</code>)</td></tr>
+        <tr><td data-label="Método">CRUD</td><td data-label="Rota"><code>/api/appointments</code></td><td data-label="Descrição">Consultas (filtros <code>?vetId=</code> <code>?petId=</code>)</td></tr>
+        <tr><td data-label="Método">CRUD</td><td data-label="Rota"><code>/api/medical-records</code></td><td data-label="Descrição">Prontuários (filtro <code>?petId=</code>)</td></tr>
+        <tr><td data-label="Método">CRUD</td><td data-label="Rota"><code>/api/services</code></td><td data-label="Descrição">Catálogo de serviços</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+</main>
+
+<footer>
+  Projeto de portfólio desenvolvido por Pedro Linard.
+</footer>
+
+</body>
+</html>

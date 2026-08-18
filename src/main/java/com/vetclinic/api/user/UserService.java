@@ -41,6 +41,10 @@ public class UserService {
         return userRepository.findAll().stream().map(UserResponse::from).toList();
     }
 
+    public List<UserResponse> findVets() {
+        return userRepository.findByRoleOrderByNameAsc(Role.VET).stream().map(UserResponse::from).toList();
+    }
+
     public UserResponse findById(UUID id) {
         return UserResponse.from(getOrThrow(id));
     }
