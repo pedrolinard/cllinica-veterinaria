@@ -11,6 +11,15 @@
   --admin: #f2b8ff;
   --vet: #7fe0a8;
   --recep: #ffd27f;
+
+  /* Categorical chart series — fixed order, validated for CVD/contrast
+     against --card (#151f38) as the chart surface. Never reassign per-value. */
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #008300;
 }
 
 * { box-sizing: border-box; }
@@ -335,6 +344,75 @@ tbody tr:hover { background: rgba(124,156,255,0.05); }
 }
 .stat-card .label { color: var(--text-dim); font-size: 13px; margin-bottom: 8px; }
 .stat-card .value { font-size: 28px; font-weight: 700; color: var(--accent); }
+
+/* ---------- Charts ---------- */
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.chart-card h3 {
+  margin: 0 0 16px;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.donut-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.donut-total-value {
+  font-size: 22px;
+  font-weight: 700;
+  fill: var(--text);
+}
+
+.donut-total-label {
+  font-size: 11px;
+  fill: var(--text-dim);
+}
+
+.legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.legend-label { color: var(--text); }
+.legend-value { margin-left: auto; color: var(--text-dim); font-variant-numeric: tabular-nums; }
 
 /* ---------- Modal ---------- */
 

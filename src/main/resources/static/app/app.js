@@ -184,6 +184,72 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
+/* ======================= Donut chart =======================
+ * Fixed-order categorical palette (never reassigned per-value), validated
+ * for CVD separation and contrast against the app's dark card surface.
+ */
+const CHART_COLORS = ['var(--series-1)', 'var(--series-2)', 'var(--series-3)', 'var(--series-4)', 'var(--series-5)', 'var(--series-6)'];
+
+function renderDonutCard(title, segments, { centerLabel = 'total' } = {}) {
+  const total = segments.reduce((sum, s) => sum + s.value, 0);
+  const card = document.createElement('div');
+  card.className = 'chart-card';
+
+  if (total === 0) {
+    card.innerHTML = `<h3>${escapeHtml(title)}</h3><div class="empty-state">Sem dados suficientes ainda.</div>`;
+    return card;
+  }
+
+  const size = 160;
+  const strokeWidth = 26;
+  const r = (size - strokeWidth) / 2;
+  const cx = size / 2;
+  const cy = size / 2;
+  const circumference = 2 * Math.PI * r;
+  const gap = segments.length > 1 ? 3 : 0;
+
+  let cursor = 0;
+  const arcs = segments.map((seg, i) => {
+    const frac = seg.value / total;
+    const rawLen = frac * circumference;
+    const len = Math.max(rawLen - gap, 0);
+    const dashoffset = -cursor;
+    cursor += rawLen;
+    return { ...seg, color: CHART_COLORS[i % CHART_COLORS.length], len, dashoffset, pct: frac * 100 };
+  });
+
+  const svg = `
+    <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" role="img" aria-label="${escapeHtml(title)}">
+      <g transform="rotate(-90 ${cx} ${cy})">
+        ${arcs.map((a) => `
+          <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${a.color}"
+            stroke-width="${strokeWidth}" stroke-linecap="round"
+            stroke-dasharray="${a.len} ${circumference - a.len}" stroke-dashoffset="${a.dashoffset}">
+            <title>${escapeHtml(a.label)}: ${a.value} (${a.pct.toFixed(0)}%)</title>
+          </circle>
+        `).join('')}
+      </g>
+      <text x="${cx}" y="${cy - 4}" text-anchor="middle" class="donut-total-value">${total}</text>
+      <text x="${cx}" y="${cy + 14}" text-anchor="middle" class="donut-total-label">${escapeHtml(centerLabel)}</text>
+    </svg>
+  `;
+
+  const legend = `
+    <ul class="legend">
+      ${arcs.map((a) => `
+        <li class="legend-item">
+          <span class="legend-swatch" style="background:${a.color}"></span>
+          <span class="legend-label">${escapeHtml(a.label)}</span>
+          <span class="legend-value">${a.value} · ${a.pct.toFixed(0)}%</span>
+        </li>
+      `).join('')}
+    </ul>
+  `;
+
+  card.innerHTML = `<h3>${escapeHtml(title)}</h3><div class="donut-row">${svg}${legend}</div>`;
+  return card;
+}
+
 /* ======================= Shared data fetchers (for selects) ======================= */
 
 async function fetchAllClients() {
@@ -313,11 +379,13 @@ async function viewDashboard(main) {
     </div>
   `;
 
-  const [clients, pets, appointments, services] = await Promise.all([
+  const [clients, pets, appointments, services, allAppointments, allPets] = await Promise.all([
     api('/api/clients', { params: { size: 1 } }),
     api('/api/pets', { params: { size: 1 } }),
     api('/api/appointments', { params: { size: 1 } }),
     api('/api/services'),
+    api('/api/appointments', { params: { size: 500 } }),
+    api('/api/pets', { params: { size: 500 } }),
   ]);
 
   const grid = document.getElementById('stat-grid');
@@ -327,6 +395,28 @@ async function viewDashboard(main) {
     <div class="stat-card"><div class="label">Consultas</div><div class="value">${appointments.totalElements}</div></div>
     <div class="stat-card"><div class="label">Serviços</div><div class="value">${services.length}</div></div>
   `;
+
+  const statusCounts = {};
+  allAppointments.content.forEach((a) => { statusCounts[a.status] = (statusCounts[a.status] || 0) + 1; });
+  const statusSegments = Object.keys(STATUS_LABELS)
+    .filter((s) => statusCounts[s])
+    .map((s) => ({ label: STATUS_LABELS[s], value: statusCounts[s] }));
+
+  const speciesCounts = {};
+  allPets.content.forEach((p) => {
+    const key = (p.species || 'Não informado').trim();
+    speciesCounts[key] = (speciesCounts[key] || 0) + 1;
+  });
+  const sortedSpecies = Object.entries(speciesCounts).sort((a, b) => b[1] - a[1]);
+  const topSpecies = sortedSpecies.slice(0, 5).map(([label, value]) => ({ label, value }));
+  const otherCount = sortedSpecies.slice(5).reduce((sum, [, v]) => sum + v, 0);
+  if (otherCount > 0) topSpecies.push({ label: 'Outros', value: otherCount });
+
+  const chartGrid = document.createElement('div');
+  chartGrid.className = 'chart-grid';
+  chartGrid.appendChild(renderDonutCard('Consultas por status', statusSegments, { centerLabel: 'consultas' }));
+  chartGrid.appendChild(renderDonutCard('Pets por espécie', topSpecies, { centerLabel: 'pets' }));
+  main.appendChild(chartGrid);
 }
 
 /* ======================= View: Clients ======================= */
