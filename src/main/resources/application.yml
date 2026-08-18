@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: vet-clinic-api
+
+  profiles:
+    # Usado apenas quando nenhum perfil é ativado por outro meio (ex: env var
+    # SPRING_PROFILES_ACTIVE, ou @ActiveProfiles nos testes). Diferente de
+    # "spring.profiles.active", "default" nunca conflita com essas outras formas
+    # de ativação de perfil.
+    default: dev
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+    show-sql: false
+
+server:
+  port: ${PORT:8080}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:troque-este-segredo-em-producao-para-algo-bem-longo-e-aleatorio}
+    expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
+  seed:
+    enabled: ${SEED_ENABLED:true}
+    admin-email: ${SEED_ADMIN_EMAIL:admin@vetclinic.com}
+    admin-password: ${SEED_ADMIN_PASSWORD:admin123}
+
+springdoc:
+  swagger-ui:
+    path: /docs
+    operationsSorter: method
+  api-docs:
+    path: /v3/api-docs
+
+logging:
+  level:
+    com.vetclinic.api: INFO

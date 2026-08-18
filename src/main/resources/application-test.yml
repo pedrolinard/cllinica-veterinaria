@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:vetclinic-test;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+
+app:
+  jwt:
+    secret: segredo-de-teste-nao-usar-em-producao-1234567890
+  seed:
+    enabled: false

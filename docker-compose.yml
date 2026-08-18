@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: vetclinic-postgres
+    environment:
+      POSTGRES_DB: vetclinic
+      POSTGRES_USER: vetclinic
+      POSTGRES_PASSWORD: vetclinic
+    ports:
+      - "5432:5432"
+    volumes:
+      - vetclinic_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vetclinic"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    container_name: vetclinic-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      DATABASE_URL: jdbc:postgresql://postgres:5432/vetclinic
+      DATABASE_USERNAME: vetclinic
+      DATABASE_PASSWORD: vetclinic
+      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-em-producao-para-algo-bem-longo-e-aleatorio}
+      SEED_ENABLED: "true"
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@vetclinic.com}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
+      PORT: 8080
+    ports:
+      - "8080:8080"
+
+volumes:
+  vetclinic_pgdata:

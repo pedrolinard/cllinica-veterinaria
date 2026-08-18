@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/vetclinic}
+    driver-class-name: org.postgresql.Driver
+    username: ${DATABASE_USERNAME:vetclinic}
+    password: ${DATABASE_PASSWORD:vetclinic}
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      # "update" cria/ajusta o schema automaticamente — conveniente para o
+      # docker-compose funcionar de primeira, sem depender de uma ferramenta
+      # de migration. Num projeto real de produção, troque para "validate"
+      # e adote Flyway/Liquibase para versionar o schema explicitamente.
+      ddl-auto: ${DDL_AUTO:update}
+
+app:
+  seed:
+    enabled: ${SEED_ENABLED:true}
