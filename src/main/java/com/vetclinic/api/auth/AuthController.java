@@ -7,6 +7,7 @@ import com.vetclinic.api.user.dto.UserResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -29,6 +30,14 @@ public class AuthController {
     @Operation(summary = "Autentica um funcionário e retorna um token JWT")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         return ResponseEntity.ok(authService.login(request));
+    }
+
+    @PostMapping("/logout")
+    @SecurityRequirement(name = "bearerAuth")
+    @Operation(summary = "Revoga o token atual, encerrando a sessão no servidor")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        authService.logout(request.getHeader("Authorization"));
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")

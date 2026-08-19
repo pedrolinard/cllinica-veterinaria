@@ -1432,7 +1432,12 @@ function setupLogin() {
 }
 
 function setupLogout() {
-  document.getElementById('logout-btn').addEventListener('click', () => {
+  document.getElementById('logout-btn').addEventListener('click', async () => {
+    try {
+      await api('/api/auth/logout', { method: 'POST' });
+    } catch (err) {
+      /* mesmo se a revogação no servidor falhar, a sessão local é limpa abaixo */
+    }
     Store.clear();
     location.hash = '';
     renderRoot();

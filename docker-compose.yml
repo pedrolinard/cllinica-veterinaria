@@ -27,10 +27,14 @@ services:
       DATABASE_URL: jdbc:postgresql://postgres:5432/vetclinic
       DATABASE_USERNAME: vetclinic
       DATABASE_PASSWORD: vetclinic
-      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-em-producao-para-algo-bem-longo-e-aleatorio}
+      # Sem valor padrão de propósito: defina em um arquivo .env (veja .env.example)
+      # antes de subir. Sem eles, o container sobe e a API falha o boot (JWT_SECRET)
+      # ou recusa criar o admin de demonstração (SEED_ADMIN_PASSWORD).
+      JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET em um arquivo .env antes de subir}
       SEED_ENABLED: "true"
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@vetclinic.com}
-      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-admin123}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?defina SEED_ADMIN_PASSWORD em um arquivo .env antes de subir}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
       PORT: 8080
     ports:
       - "8080:8080"

@@ -40,6 +40,12 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(401, "Não autorizado", "Email ou senha inválidos."));
     }
 
+    @ExceptionHandler(TooManyAttemptsException.class)
+    public ResponseEntity<ErrorResponse> handleTooManyAttempts(TooManyAttemptsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(ErrorResponse.of(429, "Muitas requisições", ex.getMessage()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
@@ -82,8 +88,27 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(409, "Conflito", "Não é possível concluir a operação: há outros registros vinculados a este item."));
     }
 
+    /**
+     * Pega-tudo. Várias exceções internas do Spring (404 de recurso estático, 405 de
+     * método não suportado, 400 de parâmetro ausente etc.) já implementam
+     * {@link org.springframework.web.ErrorResponse} e carregam o status HTTP correto —
+     * sem esse desvio, todas virariam 500 aqui, escondendo o motivo real. Só o que
+     * sobra sem status próprio é logado como erro de servidor de verdade.
+     */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        if (ex instanceof org.springframework.web.ErrorResponse errorResponse) {
+            int status = errorResponse.getStatusCode().value();
+            String detail = errorResponse.getBody().getDetail() != null
+                    ? errorResponse.getBody().getDetail()
+                    : ex.getMessage();
+            if (status >= 500) {
+                log.error("Erro inesperado ao processar requisição", ex);
+            }
+            return ResponseEntity.status(status)
+                    .body(ErrorResponse.of(status, errorResponse.getStatusCode().toString(), detail));
+        }
+
         log.error("Erro inesperado ao processar requisição", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(500, "Erro interno", "Ocorreu um erro inesperado no servidor."));

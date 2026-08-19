@@ -6,13 +6,20 @@ spring:
     password: ${DATABASE_PASSWORD:vetclinic}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
-    hibernate:
-      # "update" cria/ajusta o schema automaticamente — conveniente para o
-      # docker-compose funcionar de primeira, sem depender de uma ferramenta
-      # de migration. Num projeto real de produção, troque para "validate"
-      # e adote Flyway/Liquibase para versionar o schema explicitamente.
-      ddl-auto: ${DDL_AUTO:update}
+    # ddl-auto (validate) e as migrations do Flyway vêm do application.yml base.
 
 app:
+  jwt:
+    # Sem fallback: se JWT_SECRET não estiver setado, o boot falha em vez de
+    # assinar tokens com o segredo padrão que está no código-fonte.
+    secret: ${JWT_SECRET}
   seed:
     enabled: ${SEED_ENABLED:true}
+    # Sem fallback: se o seed estiver habilitado e a senha não for definida,
+    # o DataSeeder falha o boot (ver DataSeeder.run) em vez de criar um admin
+    # com a senha padrão do repositório.
+    admin-password: ${SEED_ADMIN_PASSWORD:}
+  cors:
+    # Sem fallback: domínio(s) do frontend em produção, separados por vírgula
+    # (ex: https://meu-frontend.vercel.app). Vazio = nenhuma origem liberada.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}

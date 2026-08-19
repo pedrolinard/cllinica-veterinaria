@@ -60,8 +60,6 @@ Cada módulo segue o mesmo padrão: `Entity` → `Repository` (Spring Data JPA) 
 Pré-requisitos: JDK 21 e Maven (ou use o wrapper, se preferir gerar um com `mvn -N wrapper:wrapper`).
 
 ```bash
-cp .env.example .env   # opcional, usado pelo docker-compose
-
 # Sobe a aplicação com o perfil "dev" (H2 em arquivo, sem precisar de banco externo)
 mvn spring-boot:run
 ```
@@ -81,10 +79,11 @@ Use o endpoint `POST /api/auth/login` com um desses usuários para obter o token
 ## Rodando com Docker (Postgres)
 
 ```bash
+cp .env.example .env   # preencha JWT_SECRET e SEED_ADMIN_PASSWORD antes de continuar
 docker compose up --build
 ```
 
-Isso sobe um Postgres e a API já configurada com o perfil `prod`, apontando para o banco em container. O schema é criado automaticamente (`ddl-auto: update`) e o seed de dados de exemplo roda por padrão, para você conseguir testar de imediato — em um ambiente de produção real, defina `SEED_ENABLED=false` e adote uma ferramenta de migration versionada (Flyway/Liquibase) em vez de `ddl-auto`.
+O container da API recusa subir sem `JWT_SECRET` e `SEED_ADMIN_PASSWORD` definidos no `.env` — de propósito, para não rodar com os segredos padrão do repositório. Isso sobe um Postgres e a API com o perfil `prod`; o schema é criado por migrations versionadas do Flyway (`src/main/resources/db/migration`), não por `ddl-auto`. O seed de dados de exemplo roda por padrão para você testar de imediato — em produção real, defina `SEED_ENABLED=false`.
 
 ## Testes
 
@@ -102,7 +101,8 @@ Os testes de integração usam `MockMvc` + H2 em memória (perfil `test`) e cobr
 
 | Método | Rota | Descrição | Acesso |
 |---|---|---|---|
-| POST | `/api/auth/login` | Autentica e retorna o JWT | Público |
+| POST | `/api/auth/login` | Autentica e retorna o JWT | Público (limitado a 5 tentativas / 15min por email) |
+| POST | `/api/auth/logout` | Revoga o token atual | Autenticado |
 | GET | `/api/auth/me` | Dados do usuário autenticado | Autenticado |
 | CRUD | `/api/users` | Gestão de funcionários | ADMIN |
 | CRUD | `/api/clients` | Tutores | Leitura: autenticado · Escrita: ADMIN/RECEPTIONIST |
@@ -120,7 +120,6 @@ Lista completa, com schemas de request/response, em `/docs`.
 - Notificações por email/SMS ao agendar ou confirmar uma consulta.
 - Upload de exames/imagens anexados ao prontuário.
 - Testes unitários adicionais para `AppointmentService` isolando o repositório com mocks (Mockito), complementando os testes de integração já existentes.
-- Migrations versionadas com Flyway (hoje o schema é gerenciado por `ddl-auto`, adequado para portfólio, mas não recomendado em produção real).
 
 ---
 

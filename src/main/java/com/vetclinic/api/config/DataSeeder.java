@@ -16,6 +16,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 
@@ -51,6 +52,13 @@ public class DataSeeder implements CommandLineRunner {
     public void run(String... args) {
         if (!seedEnabled || userRepository.count() > 0) {
             return;
+        }
+
+        if (!StringUtils.hasText(adminPassword)) {
+            throw new IllegalStateException(
+                    "app.seed.enabled está true mas nenhuma senha de admin foi definida. "
+                            + "Defina a variável de ambiente SEED_ADMIN_PASSWORD, ou desative o seed com SEED_ENABLED=false."
+            );
         }
 
         log.info("Nenhum usuário encontrado — populando banco com dados iniciais de demonstração...");
@@ -106,7 +114,7 @@ public class DataSeeder implements CommandLineRunner {
                 .durationMin(15)
                 .build());
 
-        log.info("Seed concluído. Login de admin: {} / senha: {}", adminEmail, adminPassword);
-        log.info("Login de veterinário de exemplo: {} / senha: vet12345", vet.getEmail());
+        log.info("Seed concluído. Usuário admin criado: {} (senha definida via SEED_ADMIN_PASSWORD).", adminEmail);
+        log.info("Usuário veterinário de exemplo criado: {} (ver README para a senha de demonstração).", vet.getEmail());
     }
 }

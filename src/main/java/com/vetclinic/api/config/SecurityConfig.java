@@ -4,6 +4,7 @@ import com.vetclinic.api.security.CustomUserDetailsService;
 import com.vetclinic.api.security.JwtAuthenticationFilter;
 import com.vetclinic.api.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -21,6 +22,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -32,6 +34,12 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService userDetailsService;
     private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
+
+    // Lista separada por vírgula. Em dev/test, "*" libera qualquer origem por
+    // conveniência; em produção, deve apontar para o(s) domínio(s) reais do
+    // frontend (ver CORS_ALLOWED_ORIGINS no application-prod.yml / docker-compose.yml).
+    @Value("${app.cors.allowed-origins:*}")
+    private String allowedOriginsCsv;
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/",
@@ -66,10 +74,14 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        // Configuração permissiva para facilitar testes/portfolio.
-        // Em produção, restrinja allowedOrigins ao(s) domínio(s) do seu frontend.
+        List<String> allowedOrigins = Arrays.stream(allowedOriginsCsv.split(","))
+                .map(String::trim)
+                .filter(origin -> !origin.isEmpty())
+                .toList();
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("*"));
+        // Vazio (ex: env var não definida em prod) = nenhuma origem liberada, por segurança.
+        configuration.setAllowedOriginPatterns(allowedOrigins.isEmpty() ? List.of() : allowedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);

@@ -11,6 +11,7 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 import java.util.function.Function;
 
 /**
@@ -35,6 +36,7 @@ public class JwtService {
         Instant expiry = now.plusSeconds(expirationMinutes * 60);
 
         return Jwts.builder()
+                .id(UUID.randomUUID().toString())
                 .subject(principal.getEmail())
                 .claim("userId", principal.getId().toString())
                 .claim("name", principal.getName())
@@ -51,6 +53,14 @@ public class JwtService {
 
     public String extractRole(String token) {
         return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    public String extractJti(String token) {
+        return extractClaim(token, Claims::getId);
+    }
+
+    public Instant extractExpiration(String token) {
+        return extractClaim(token, Claims::getExpiration).toInstant();
     }
 
     public boolean isTokenValid(String token, UserDetails userDetails) {

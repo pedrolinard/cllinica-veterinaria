@@ -12,7 +12,9 @@ spring:
   jpa:
     open-in-view: false
     hibernate:
-      ddl-auto: update
+      # O schema é gerenciado por migrations versionadas (src/main/resources/db/migration),
+      # não gerado automaticamente — "validate" só confirma que as entidades batem com o schema.
+      ddl-auto: validate
     properties:
       hibernate:
         format_sql: true
@@ -23,12 +25,19 @@ server:
 
 app:
   jwt:
-    secret: ${JWT_SECRET:troque-este-segredo-em-producao-para-algo-bem-longo-e-aleatorio}
+    # Sem valor padrão de propósito: veja application-prod.yml — em produção o boot
+    # falha se JWT_SECRET não estiver definido, em vez de assinar tokens com um
+    # segredo previsível que está no código-fonte.
+    secret: ${JWT_SECRET:apenas-para-dev-local-nao-usar-em-producao-00000000}
     expiration-minutes: ${JWT_EXPIRATION_MINUTES:480}
   seed:
     enabled: ${SEED_ENABLED:true}
     admin-email: ${SEED_ADMIN_EMAIL:admin@vetclinic.com}
     admin-password: ${SEED_ADMIN_PASSWORD:admin123}
+  cors:
+    # "*" é conveniente em dev/test; em produção, defina CORS_ALLOWED_ORIGINS com o(s)
+    # domínio(s) reais do frontend (ver application-prod.yml).
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
 
 springdoc:
   swagger-ui:
