@@ -8,7 +8,13 @@ API REST para gestão de uma clínica veterinária, construída em **Java 21 + S
 - **Clientes (tutores)** e **pets**, com relacionamento 1:N e paginação.
 - **Agendamento de consultas**, com validação de conflito de horário por veterinário (um mesmo veterinário não pode ter duas consultas sobrepostas) e transições de status controladas (`SCHEDULED` → `CONFIRMED` → `COMPLETED` / `CANCELED`).
 - **Prontuários médicos**, vinculados a uma consulta concluída (regra de negócio: só é possível registrar prontuário de uma consulta com status `COMPLETED`).
-- **Catálogo de serviços** (consulta, vacinação, banho e tosa, etc).
+- **Catálogo de serviços** (consulta, vacinação, banho e tosa, etc), opcionalmente vinculado a cada consulta.
+- **Dashboard** com estatísticas agregadas (contagens, consultas por status, pets por espécie) calculadas no banco.
+- **Busca por nome** em clientes e pets (`?q=`), usada pelos campos de busca do painel em vez de carregar a lista inteira.
+- **Anexos de prontuário**: upload/download de exames e fotos (imagem ou PDF, até 5MB).
+- **Relatórios em CSV**: agenda do dia e faturamento por serviço num período.
+- **Lembrete de consulta por email** na véspera — desligado por padrão, liga com `REMINDERS_ENABLED=true` + SMTP configurado.
+- **Troca de senha self-service**, sem depender do ADMIN.
 - **Documentação OpenAPI/Swagger** navegável em `/docs`.
 - **Seed automático** de dados de exemplo ao subir a aplicação pela primeira vez.
 
@@ -104,21 +110,27 @@ Os testes de integração usam `MockMvc` + H2 em memória (perfil `test`) e cobr
 | POST | `/api/auth/login` | Autentica e retorna o JWT | Público (limitado a 5 tentativas / 15min por email) |
 | POST | `/api/auth/logout` | Revoga o token atual | Autenticado |
 | GET | `/api/auth/me` | Dados do usuário autenticado | Autenticado |
+| PATCH | `/api/users/me/password` | Troca a própria senha | Autenticado |
 | CRUD | `/api/users` | Gestão de funcionários | ADMIN |
-| CRUD | `/api/clients` | Tutores | Leitura: autenticado · Escrita: ADMIN/RECEPTIONIST |
-| CRUD | `/api/pets` | Pets (filtro `?clientId=`) | Leitura: autenticado · Escrita: ADMIN/RECEPTIONIST |
+| CRUD | `/api/clients` | Tutores (busca `?q=`) | Leitura: autenticado · Escrita: ADMIN/RECEPTIONIST |
+| CRUD | `/api/pets` | Pets (filtros `?clientId=` `?q=`) | Leitura: autenticado · Escrita: ADMIN/RECEPTIONIST |
 | CRUD | `/api/appointments` | Consultas (filtros `?vetId=` `?petId=`) | Leitura: autenticado · Escrita: ADMIN/RECEPTIONIST |
 | PATCH | `/api/appointments/{id}/status` | Atualiza status da consulta | ADMIN/RECEPTIONIST/VET |
 | CRUD | `/api/medical-records` | Prontuários (filtro `?petId=`) | Leitura: autenticado · Escrita: VET/ADMIN |
+| CRUD | `/api/medical-records/{id}/attachments` | Anexos do prontuário | Leitura: autenticado · Upload: VET/ADMIN · Exclusão: ADMIN |
 | CRUD | `/api/services` | Catálogo de serviços | Leitura: autenticado · Escrita: ADMIN |
+| GET | `/api/dashboard/stats` | Estatísticas agregadas do painel | Autenticado |
+| GET | `/api/reports/daily-agenda` | Agenda de um dia (CSV) | ADMIN/RECEPTIONIST |
+| GET | `/api/reports/billing` | Faturamento por serviço num período (CSV) | ADMIN |
 
 Lista completa, com schemas de request/response, em `/docs`.
 
 ## Possíveis evoluções
 
-- Paginação e busca textual (ex: por nome de pet/tutor) mais avançada.
-- Notificações por email/SMS ao agendar ou confirmar uma consulta.
-- Upload de exames/imagens anexados ao prontuário.
+- Exportação de relatórios também em PDF (hoje só CSV).
+- Portal do tutor: agendar e ver o prontuário do próprio pet.
+- Auditoria (quem alterou o quê e quando).
+- CI: build + testes em cada PR.
 - Testes unitários adicionais para `AppointmentService` isolando o repositório com mocks (Mockito), complementando os testes de integração já existentes.
 
 ---

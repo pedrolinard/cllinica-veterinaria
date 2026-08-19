@@ -12,6 +12,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.UUID;
 
@@ -41,10 +42,18 @@ public class PetService {
         return PetResponse.from(petRepository.save(pet));
     }
 
-    public Page<PetResponse> findAll(UUID clientId, Pageable pageable) {
-        Page<Pet> page = clientId != null
-                ? petRepository.findByClientId(clientId, pageable)
-                : petRepository.findAll(pageable);
+    public Page<PetResponse> findAll(UUID clientId, String q, Pageable pageable) {
+        boolean hasQuery = StringUtils.hasText(q);
+        Page<Pet> page;
+        if (clientId != null && hasQuery) {
+            page = petRepository.findByClientIdAndNameContainingIgnoreCase(clientId, q.trim(), pageable);
+        } else if (clientId != null) {
+            page = petRepository.findByClientId(clientId, pageable);
+        } else if (hasQuery) {
+            page = petRepository.findByNameContainingIgnoreCase(q.trim(), pageable);
+        } else {
+            page = petRepository.findAll(pageable);
+        }
         return page.map(PetResponse::from);
     }
 

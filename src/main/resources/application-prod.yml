@@ -6,7 +6,9 @@ spring:
     password: ${DATABASE_PASSWORD:vetclinic}
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
-    # ddl-auto (validate) e as migrations do Flyway vêm do application.yml base.
+    # ddl-auto (validate) vem do application.yml base.
+  flyway:
+    locations: classpath:db/migration,classpath:db/migration-postgresql
 
 app:
   jwt:

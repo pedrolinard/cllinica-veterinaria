@@ -2,6 +2,7 @@ package com.vetclinic.api.appointment;
 
 import com.vetclinic.api.common.BaseEntity;
 import com.vetclinic.api.pet.Pet;
+import com.vetclinic.api.service.ClinicService;
 import com.vetclinic.api.user.User;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -51,6 +52,11 @@ public class Appointment extends BaseEntity {
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "vet_id", nullable = false)
     private User vet;
+
+    /** Serviço do catálogo realizado nesta consulta (opcional; usado no relatório de faturamento). */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "service_id")
+    private ClinicService service;
 
     /** Horário de término calculado a partir de scheduledAt + durationMin. */
     public LocalDateTime getEndsAt() {

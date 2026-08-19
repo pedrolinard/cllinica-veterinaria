@@ -16,7 +16,9 @@ public record AppointmentResponse(
         UUID petId,
         String petName,
         UUID vetId,
-        String vetName
+        String vetName,
+        UUID serviceId,
+        String serviceName
 ) {
     public static AppointmentResponse from(Appointment appointment) {
         return new AppointmentResponse(
@@ -29,7 +31,9 @@ public record AppointmentResponse(
                 appointment.getPet().getId(),
                 appointment.getPet().getName(),
                 appointment.getVet().getId(),
-                appointment.getVet().getName()
+                appointment.getVet().getName(),
+                appointment.getService() != null ? appointment.getService().getId() : null,
+                appointment.getService() != null ? appointment.getService().getName() : null
         );
     }
 }

@@ -21,6 +21,8 @@ public record AppointmentRequest(
         UUID petId,
 
         @NotNull(message = "Veterinário é obrigatório.")
-        UUID vetId
+        UUID vetId,
+
+        UUID serviceId
 ) {
 }

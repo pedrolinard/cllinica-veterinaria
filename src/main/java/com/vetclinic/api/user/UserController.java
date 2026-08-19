@@ -1,5 +1,7 @@
 package com.vetclinic.api.user;
 
+import com.vetclinic.api.security.UserPrincipal;
+import com.vetclinic.api.user.dto.ChangePasswordRequest;
 import com.vetclinic.api.user.dto.CreateUserRequest;
 import com.vetclinic.api.user.dto.UpdateUserRequest;
 import com.vetclinic.api.user.dto.UserResponse;
@@ -11,6 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -47,6 +50,17 @@ public class UserController {
     @Operation(summary = "Lista os veterinários (para seleção ao agendar consultas)")
     public ResponseEntity<List<UserResponse>> findVets() {
         return ResponseEntity.ok(userService.findVets());
+    }
+
+    @PatchMapping("/me/password")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Troca a própria senha (qualquer funcionário autenticado)")
+    public ResponseEntity<Void> changeOwnPassword(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChangePasswordRequest request
+    ) {
+        userService.changeOwnPassword(principal.getId(), request);
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/{id}")

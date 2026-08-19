@@ -63,7 +63,7 @@ public class ClinicServiceManager {
         repository.deleteById(id);
     }
 
-    private ClinicService getOrThrow(UUID id) {
+    public ClinicService getOrThrow(UUID id) {
         return repository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Serviço", id));
     }

@@ -69,6 +69,62 @@ async function api(path, { method = 'GET', body, params } = {}) {
   return data;
 }
 
+async function apiUpload(path, file) {
+  const headers = {};
+  const token = Store.getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await fetch(path, { method: 'POST', headers, body: formData });
+  let data = null;
+  try {
+    data = await res.json();
+  } catch (e) {
+    /* no body */
+  }
+  if (!res.ok) throw new ApiError(data, res.status);
+  return data;
+}
+
+async function downloadFile(path, params, fallbackFilename) {
+  let url = path;
+  if (params) {
+    const qs = new URLSearchParams();
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') qs.set(k, v);
+    });
+    const qsStr = qs.toString();
+    if (qsStr) url += (url.includes('?') ? '&' : '?') + qsStr;
+  }
+
+  const headers = {};
+  const token = Store.getToken();
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    let data = null;
+    try { data = await res.json(); } catch (e) { /* no body */ }
+    throw new ApiError(data, res.status);
+  }
+
+  const disposition = res.headers.get('Content-Disposition') || '';
+  const match = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(disposition);
+  const filename = match ? decodeURIComponent(match[1]) : fallbackFilename;
+
+  const blob = await res.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = blobUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(blobUrl);
+}
+
 /* ======================= Toasts ======================= */
 
 function toast(message, type = 'success') {
@@ -289,6 +345,63 @@ function paginationControls(pageData, onChange) {
   return div;
 }
 
+/* ======================= Searchable select (busca em vez de carregar tudo) =======================
+ * <input list="..."> + <datalist> nativo do navegador: busca no backend conforme o
+ * usuário digita (debounced) em vez de pré-carregar centenas de registros.
+ */
+let searchSelectSeq = 0;
+
+function searchSelectField({ label, name, required, initial, fetchOptions, formatOption }) {
+  const id = 'ssel-' + (++searchSelectSeq);
+  const initialLabel = initial ? formatOption(initial) : '';
+  return `
+    <div class="field">
+      <label>${escapeHtml(label)}</label>
+      <input type="text" id="${id}-input" list="${id}-list" autocomplete="off"
+             placeholder="Digite para buscar…" value="${escapeHtml(initialLabel)}" ${required ? 'required' : ''} />
+      <datalist id="${id}-list"></datalist>
+      <input type="hidden" name="${name}" id="${id}-hidden" value="${initial ? initial.id : ''}" />
+    </div>
+  `;
+}
+
+function bindSearchSelect(container, name, fetchOptions, formatOption) {
+  const idPrefix = container.querySelector(`[name="${name}"]`).id.replace('-hidden', '');
+  const input = container.querySelector(`#${idPrefix}-input`);
+  const datalist = container.querySelector(`#${idPrefix}-list`);
+  const hidden = container.querySelector(`#${idPrefix}-hidden`);
+  let items = [];
+  let debounceTimer;
+
+  const applySelection = () => {
+    const match = items.find((item) => formatOption(item) === input.value);
+    hidden.value = match ? match.id : '';
+  };
+
+  input.addEventListener('input', () => {
+    // Selecionar uma sugestão do <datalist> também dispara "input" (o valor mudou) —
+    // resolve na hora se já bate com um item conhecido, sem esperar o debounce/blur.
+    applySelection();
+    clearTimeout(debounceTimer);
+    const q = input.value.trim();
+    if (!q) {
+      datalist.innerHTML = '';
+      items = [];
+      return;
+    }
+    debounceTimer = setTimeout(async () => {
+      try {
+        items = await fetchOptions(q);
+        datalist.innerHTML = items.map((item) => `<option value="${escapeHtml(formatOption(item))}"></option>`).join('');
+        applySelection();
+      } catch (err) {
+        /* busca falhou silenciosamente; usuário pode tentar de novo */
+      }
+    }, 250);
+  });
+  input.addEventListener('change', applySelection);
+}
+
 /* ======================= Navigation ======================= */
 
 const NAV_ITEMS = [
@@ -298,6 +411,7 @@ const NAV_ITEMS = [
   { hash: '#/appointments', label: 'Consultas', icon: '▤', roles: null },
   { hash: '#/medical-records', label: 'Prontuários', icon: '✚', roles: null },
   { hash: '#/services', label: 'Serviços', icon: '☰', roles: null },
+  { hash: '#/reports', label: 'Relatórios', icon: '⤓', roles: ['ADMIN', 'RECEPTIONIST'] },
   { hash: '#/users', label: 'Funcionários', icon: '☺', roles: ['ADMIN'] },
 ];
 
@@ -329,6 +443,7 @@ const ROUTES = {
   '#/appointments': viewAppointments,
   '#/medical-records': viewMedicalRecords,
   '#/services': viewServices,
+  '#/reports': viewReports,
   '#/users': viewUsers,
 };
 
@@ -379,35 +494,21 @@ async function viewDashboard(main) {
     </div>
   `;
 
-  const [clients, pets, appointments, services, allAppointments, allPets] = await Promise.all([
-    api('/api/clients', { params: { size: 1 } }),
-    api('/api/pets', { params: { size: 1 } }),
-    api('/api/appointments', { params: { size: 1 } }),
-    api('/api/services'),
-    api('/api/appointments', { params: { size: 500 } }),
-    api('/api/pets', { params: { size: 500 } }),
-  ]);
+  const stats = await api('/api/dashboard/stats');
 
   const grid = document.getElementById('stat-grid');
   grid.innerHTML = `
-    <div class="stat-card"><div class="label">Clientes</div><div class="value">${clients.totalElements}</div></div>
-    <div class="stat-card"><div class="label">Pets</div><div class="value">${pets.totalElements}</div></div>
-    <div class="stat-card"><div class="label">Consultas</div><div class="value">${appointments.totalElements}</div></div>
-    <div class="stat-card"><div class="label">Serviços</div><div class="value">${services.length}</div></div>
+    <div class="stat-card"><div class="label">Clientes</div><div class="value">${stats.clients}</div></div>
+    <div class="stat-card"><div class="label">Pets</div><div class="value">${stats.pets}</div></div>
+    <div class="stat-card"><div class="label">Consultas</div><div class="value">${stats.appointments}</div></div>
+    <div class="stat-card"><div class="label">Serviços</div><div class="value">${stats.services}</div></div>
   `;
 
-  const statusCounts = {};
-  allAppointments.content.forEach((a) => { statusCounts[a.status] = (statusCounts[a.status] || 0) + 1; });
   const statusSegments = Object.keys(STATUS_LABELS)
-    .filter((s) => statusCounts[s])
-    .map((s) => ({ label: STATUS_LABELS[s], value: statusCounts[s] }));
+    .filter((s) => stats.appointmentsByStatus[s])
+    .map((s) => ({ label: STATUS_LABELS[s], value: stats.appointmentsByStatus[s] }));
 
-  const speciesCounts = {};
-  allPets.content.forEach((p) => {
-    const key = (p.species || 'Não informado').trim();
-    speciesCounts[key] = (speciesCounts[key] || 0) + 1;
-  });
-  const sortedSpecies = Object.entries(speciesCounts).sort((a, b) => b[1] - a[1]);
+  const sortedSpecies = Object.entries(stats.petsBySpecies).sort((a, b) => b[1] - a[1]);
   const topSpecies = sortedSpecies.slice(0, 5).map(([label, value]) => ({ label, value }));
   const otherCount = sortedSpecies.slice(5).reduce((sum, [, v]) => sum + v, 0);
   if (otherCount > 0) topSpecies.push({ label: 'Outros', value: otherCount });
@@ -574,14 +675,14 @@ async function viewPets(main) {
   document.getElementById('pets-client-filter').onchange = (e) => {
     petsState.clientId = e.target.value;
     petsState.page = 0;
-    loadPets(clients);
+    loadPets();
   };
 
-  if (canWrite) document.getElementById('new-pet-btn').onclick = () => openPetForm(clients);
-  await loadPets(clients);
+  if (canWrite) document.getElementById('new-pet-btn').onclick = () => openPetForm();
+  await loadPets();
 }
 
-async function loadPets(clients) {
+async function loadPets() {
   const container = document.getElementById('pets-table');
   const page = await api('/api/pets', { params: { page: petsState.page, clientId: petsState.clientId || undefined } });
   const canWrite = hasRole(ROLES.petsWrite);
@@ -617,13 +718,13 @@ async function loadPets(clients) {
     container.querySelectorAll('tr[data-id]').forEach((row) => {
       const id = row.dataset.id;
       const pet = page.content.find((p) => p.id === id);
-      row.querySelector('[data-action="edit"]')?.addEventListener('click', () => openPetForm(clients, pet));
+      row.querySelector('[data-action="edit"]')?.addEventListener('click', () => openPetForm(pet));
       row.querySelector('[data-action="delete"]')?.addEventListener('click', () => {
         confirmDialog(`Excluir o pet <strong>${escapeHtml(pet.name)}</strong>?`, async () => {
           try {
             await api(`/api/pets/${id}`, { method: 'DELETE' });
             toast('Pet removido.');
-            await loadPets(clients);
+            await loadPets();
           } catch (err) {
             toast(apiErrorMessage(err), 'error');
           }
@@ -634,12 +735,13 @@ async function loadPets(clients) {
 
   container.appendChild(paginationControls(page, (newPage) => {
     petsState.page = newPage;
-    loadPets(clients);
+    loadPets();
   }));
 }
 
-function openPetForm(clients, pet) {
+function openPetForm(pet) {
   const isEdit = !!pet;
+  const initialClient = pet ? { id: pet.clientId, name: pet.clientName } : null;
   const modal = openModal(isEdit ? 'Editar pet' : 'Novo pet', `
     <div id="pet-form-error"></div>
     <form id="pet-form">
@@ -668,13 +770,10 @@ function openPetForm(clients, pet) {
           <label>Data de nascimento</label>
           <input name="birthDate" type="date" value="${pet?.birthDate || ''}" />
         </div>
-        <div class="field">
-          <label>Tutor</label>
-          <select name="clientId" required>
-            <option value="">Selecione…</option>
-            ${clients.map((c) => `<option value="${c.id}" ${pet?.clientId === c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('')}
-          </select>
-        </div>
+        ${searchSelectField({
+          label: 'Tutor', name: 'clientId', required: true, initial: initialClient,
+          formatOption: (c) => c.name,
+        })}
       </div>
       <div class="field">
         <label>Observações</label>
@@ -686,6 +785,8 @@ function openPetForm(clients, pet) {
       </div>
     </form>
   `);
+
+  bindSearchSelect(modal, 'clientId', async (q) => (await api('/api/clients', { params: { q, size: 8 } })).content, (c) => c.name);
 
   modal.querySelector('#pet-cancel').onclick = closeModal;
   modal.querySelector('#pet-form').onsubmit = async (e) => {
@@ -711,7 +812,7 @@ function openPetForm(clients, pet) {
         toast('Pet cadastrado.');
       }
       closeModal();
-      await loadPets(clients);
+      await loadPets();
     } catch (err) {
       formError(modal.querySelector('#pet-form-error'), err);
       btn.disabled = false;
@@ -753,14 +854,14 @@ async function viewAppointments(main) {
     <div id="appt-table"></div>
   `;
 
-  document.getElementById('appt-pet-filter').onchange = (e) => { apptState.petId = e.target.value; apptState.page = 0; loadAppointments(pets, vets); };
-  document.getElementById('appt-vet-filter').onchange = (e) => { apptState.vetId = e.target.value; apptState.page = 0; loadAppointments(pets, vets); };
+  document.getElementById('appt-pet-filter').onchange = (e) => { apptState.petId = e.target.value; apptState.page = 0; loadAppointments(vets); };
+  document.getElementById('appt-vet-filter').onchange = (e) => { apptState.vetId = e.target.value; apptState.page = 0; loadAppointments(vets); };
 
-  if (canWrite) document.getElementById('new-appt-btn').onclick = () => openAppointmentForm(pets, vets);
-  await loadAppointments(pets, vets);
+  if (canWrite) document.getElementById('new-appt-btn').onclick = () => openAppointmentForm(vets);
+  await loadAppointments(vets);
 }
 
-async function loadAppointments(pets, vets) {
+async function loadAppointments(vets) {
   const container = document.getElementById('appt-table');
   const page = await api('/api/appointments', { params: { page: apptState.page, vetId: apptState.vetId || undefined, petId: apptState.petId || undefined } });
   const canWrite = hasRole(ROLES.appointmentsWrite);
@@ -812,18 +913,18 @@ async function loadAppointments(pets, vets) {
     const id = row.dataset.id;
     const appt = page.content.find((a) => a.id === id);
 
-    row.querySelector('[data-action="confirm"]')?.addEventListener('click', () => updateApptStatus(id, 'CONFIRMED', pets, vets));
-    row.querySelector('[data-action="complete"]')?.addEventListener('click', () => updateApptStatus(id, 'COMPLETED', pets, vets));
+    row.querySelector('[data-action="confirm"]')?.addEventListener('click', () => updateApptStatus(id, 'CONFIRMED', vets));
+    row.querySelector('[data-action="complete"]')?.addEventListener('click', () => updateApptStatus(id, 'COMPLETED', vets));
     row.querySelector('[data-action="cancel"]')?.addEventListener('click', () => {
-      confirmDialog('Cancelar esta consulta?', () => updateApptStatus(id, 'CANCELED', pets, vets));
+      confirmDialog('Cancelar esta consulta?', () => updateApptStatus(id, 'CANCELED', vets));
     });
-    row.querySelector('[data-action="edit"]')?.addEventListener('click', () => openAppointmentForm(pets, vets, appt));
+    row.querySelector('[data-action="edit"]')?.addEventListener('click', () => openAppointmentForm(vets, appt));
     row.querySelector('[data-action="delete"]')?.addEventListener('click', () => {
       confirmDialog('Excluir esta consulta?', async () => {
         try {
           await api(`/api/appointments/${id}`, { method: 'DELETE' });
           toast('Consulta removida.');
-          await loadAppointments(pets, vets);
+          await loadAppointments(vets);
         } catch (err) {
           toast(apiErrorMessage(err), 'error');
         }
@@ -833,22 +934,24 @@ async function loadAppointments(pets, vets) {
 
   container.appendChild(paginationControls(page, (newPage) => {
     apptState.page = newPage;
-    loadAppointments(pets, vets);
+    loadAppointments(vets);
   }));
 }
 
-async function updateApptStatus(id, status, pets, vets) {
+async function updateApptStatus(id, status, vets) {
   try {
     await api(`/api/appointments/${id}/status`, { method: 'PATCH', body: { status } });
     toast('Status atualizado.');
-    await loadAppointments(pets, vets);
+    await loadAppointments(vets);
   } catch (err) {
     toast(apiErrorMessage(err), 'error');
   }
 }
 
-function openAppointmentForm(pets, vets, appt) {
+async function openAppointmentForm(vets, appt) {
   const isEdit = !!appt;
+  const services = await api('/api/services', { params: { onlyActive: true } });
+  const initialPet = appt ? { id: appt.petId, name: appt.petName, clientName: '' } : null;
   const modal = openModal(isEdit ? 'Reagendar consulta' : 'Nova consulta', `
     <div id="appt-form-error"></div>
     <form id="appt-form">
@@ -863,13 +966,10 @@ function openAppointmentForm(pets, vets, appt) {
         </div>
       </div>
       <div class="form-row">
-        <div class="field">
-          <label>Pet</label>
-          <select name="petId" required>
-            <option value="">Selecione…</option>
-            ${pets.map((p) => `<option value="${p.id}" ${appt?.petId === p.id ? 'selected' : ''}>${escapeHtml(p.name)} (${escapeHtml(p.clientName)})</option>`).join('')}
-          </select>
-        </div>
+        ${searchSelectField({
+          label: 'Pet', name: 'petId', required: true, initial: initialPet,
+          formatOption: (p) => p.clientName ? `${p.name} (${p.clientName})` : p.name,
+        })}
         <div class="field">
           <label>Veterinário</label>
           <select name="vetId" required>
@@ -877,6 +977,13 @@ function openAppointmentForm(pets, vets, appt) {
             ${vets.map((v) => `<option value="${v.id}" ${appt?.vetId === v.id ? 'selected' : ''}>${escapeHtml(v.name)}</option>`).join('')}
           </select>
         </div>
+      </div>
+      <div class="field">
+        <label>Serviço (opcional)</label>
+        <select name="serviceId">
+          <option value="">Não informado</option>
+          ${services.map((s) => `<option value="${s.id}" ${appt?.serviceId === s.id ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('')}
+        </select>
       </div>
       <div class="field">
         <label>Motivo</label>
@@ -889,6 +996,12 @@ function openAppointmentForm(pets, vets, appt) {
     </form>
   `);
 
+  bindSearchSelect(
+    modal, 'petId',
+    async (q) => (await api('/api/pets', { params: { q, size: 8 } })).content,
+    (p) => p.clientName ? `${p.name} (${p.clientName})` : p.name
+  );
+
   modal.querySelector('#appt-cancel').onclick = closeModal;
   modal.querySelector('#appt-form').onsubmit = async (e) => {
     e.preventDefault();
@@ -899,6 +1012,7 @@ function openAppointmentForm(pets, vets, appt) {
       reason: fd.get('reason').trim() || null,
       petId: fd.get('petId'),
       vetId: fd.get('vetId'),
+      serviceId: fd.get('serviceId') || null,
     };
     const btn = modal.querySelector('#appt-submit');
     btn.disabled = true;
@@ -911,7 +1025,7 @@ function openAppointmentForm(pets, vets, appt) {
         toast('Consulta agendada.');
       }
       closeModal();
-      await loadAppointments(pets, vets);
+      await loadAppointments(vets);
     } catch (err) {
       formError(modal.querySelector('#appt-form-error'), err);
       btn.disabled = false;
@@ -974,7 +1088,7 @@ async function loadMedicalRecords(pets) {
 
   container.innerHTML = `
     <table>
-      <thead><tr><th>Data</th><th>Diagnóstico</th><th>Peso (kg)</th><th>Vacinas</th><th>Prescrições</th>${showActions ? '<th>Ações</th>' : ''}</tr></thead>
+      <thead><tr><th>Data</th><th>Diagnóstico</th><th>Peso (kg)</th><th>Vacinas</th><th>Prescrições</th><th>Anexos</th>${showActions ? '<th>Ações</th>' : ''}</tr></thead>
       <tbody>
         ${page.content.map((r) => `
           <tr data-id="${r.id}">
@@ -983,6 +1097,7 @@ async function loadMedicalRecords(pets) {
             <td>${r.weightKg ?? '—'}</td>
             <td>${escapeHtml(r.vaccines || '—')}</td>
             <td>${escapeHtml(r.prescriptions || '—')}</td>
+            <td><button class="btn btn-secondary btn-sm" data-action="attachments">Ver anexos</button></td>
             ${showActions ? `<td class="row-actions">
               ${canWrite ? '<button class="btn btn-secondary btn-sm" data-action="edit">Editar</button>' : ''}
               ${canDelete ? '<button class="btn btn-danger btn-sm" data-action="delete">Excluir</button>' : ''}
@@ -996,6 +1111,7 @@ async function loadMedicalRecords(pets) {
   container.querySelectorAll('tr[data-id]').forEach((row) => {
     const id = row.dataset.id;
     const record = page.content.find((r) => r.id === id);
+    row.querySelector('[data-action="attachments"]')?.addEventListener('click', () => openAttachmentsModal(record));
     row.querySelector('[data-action="edit"]')?.addEventListener('click', () => openMedicalRecordForm(pets, recordsState.petId, record));
     row.querySelector('[data-action="delete"]')?.addEventListener('click', () => {
       confirmDialog('Excluir este prontuário?', async () => {
@@ -1116,6 +1232,112 @@ async function openMedicalRecordForm(pets, petId, record) {
       btn.disabled = false;
     }
   };
+}
+
+/* ======================= Attachments (anexos de prontuário) ======================= */
+
+const ATTACHMENT_MAX_MB = 5;
+const ATTACHMENT_ACCEPT = 'image/jpeg,image/png,image/webp,image/gif,application/pdf';
+
+function fmtBytes(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+async function openAttachmentsModal(record) {
+  const canWrite = hasRole(ROLES.medicalRecordsWrite);
+  const canDelete = hasRole(ROLES.medicalRecordsDelete);
+  const modal = openModal('Anexos do prontuário', `<p class="text-dim">Carregando…</p>`);
+
+  async function render() {
+    let attachments;
+    try {
+      attachments = await api(`/api/medical-records/${record.id}/attachments`);
+    } catch (err) {
+      modal.innerHTML = `<h3>Anexos do prontuário</h3>`;
+      formError(modal, err);
+      return;
+    }
+
+    modal.innerHTML = `
+      <h3>Anexos do prontuário</h3>
+      <div id="attachments-error"></div>
+      ${attachments.length === 0
+        ? '<div class="empty-state">Nenhum anexo ainda.</div>'
+        : `<ul class="attachment-list">
+            ${attachments.map((a) => `
+              <li data-id="${a.id}">
+                <span class="attachment-name">${escapeHtml(a.filename)}</span>
+                <span class="text-dim">${fmtBytes(a.sizeBytes)}</span>
+                <button class="btn btn-secondary btn-sm" data-action="download">Baixar</button>
+                ${canDelete ? `<button class="btn btn-danger btn-sm" data-action="delete">Excluir</button>` : ''}
+              </li>
+            `).join('')}
+          </ul>`
+      }
+      ${canWrite ? `
+        <div class="field" style="margin-top:12px;">
+          <label>Anexar arquivo (imagem ou PDF, até ${ATTACHMENT_MAX_MB}MB)</label>
+          <input type="file" id="attachment-file" accept="${ATTACHMENT_ACCEPT}" />
+        </div>
+      ` : ''}
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="attachments-close">Fechar</button>
+      </div>
+    `;
+
+    modal.querySelector('#attachments-close').onclick = closeModal;
+
+    modal.querySelectorAll('[data-action="download"]').forEach((btn) => {
+      btn.addEventListener('click', async (e) => {
+        const id = e.target.closest('li').dataset.id;
+        try {
+          await downloadFile(`/api/medical-records/attachments/${id}/download`, null, 'anexo');
+        } catch (err) {
+          toast(apiErrorMessage(err), 'error');
+        }
+      });
+    });
+
+    modal.querySelectorAll('[data-action="delete"]').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const id = e.target.closest('li').dataset.id;
+        confirmDialog('Excluir este anexo?', async () => {
+          try {
+            await api(`/api/medical-records/attachments/${id}`, { method: 'DELETE' });
+            toast('Anexo removido.');
+            await render();
+          } catch (err) {
+            toast(apiErrorMessage(err), 'error');
+          }
+        });
+      });
+    });
+
+    const fileInput = modal.querySelector('#attachment-file');
+    if (fileInput) {
+      fileInput.addEventListener('change', async () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        if (file.size > ATTACHMENT_MAX_MB * 1024 * 1024) {
+          modal.querySelector('#attachments-error').innerHTML =
+            `<div class="error-box">Arquivo maior que ${ATTACHMENT_MAX_MB}MB.</div>`;
+          fileInput.value = '';
+          return;
+        }
+        try {
+          await apiUpload(`/api/medical-records/${record.id}/attachments`, file);
+          toast('Anexo enviado.');
+          await render();
+        } catch (err) {
+          formError(modal.querySelector('#attachments-error'), err);
+        }
+      });
+    }
+  }
+
+  await render();
 }
 
 /* ======================= View: Services ======================= */
@@ -1261,6 +1483,77 @@ function openServiceForm(service) {
       btn.disabled = false;
     }
   };
+}
+
+/* ======================= View: Reports ======================= */
+
+function todayIso() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+async function viewReports(main) {
+  const canBilling = hasRole(['ADMIN']);
+  const today = todayIso();
+
+  main.innerHTML = `
+    <div class="view-header">
+      <div><h2>Relatórios</h2><p>Exportações em CSV.</p></div>
+    </div>
+
+    <div class="report-card">
+      <h3>Agenda do dia</h3>
+      <p class="text-dim">Lista as consultas de uma data (exceto canceladas), com pet, tutor, veterinário e serviço.</p>
+      <div class="toolbar">
+        <input type="date" id="report-agenda-date" value="${today}" />
+        <button class="btn btn-primary" id="report-agenda-btn">Baixar CSV</button>
+      </div>
+    </div>
+
+    ${canBilling ? `
+      <div class="report-card">
+        <h3>Faturamento por serviço</h3>
+        <p class="text-dim">Soma as consultas concluídas num período, agrupadas pelo serviço realizado.</p>
+        <div class="toolbar">
+          <input type="date" id="report-billing-from" value="${today}" />
+          <input type="date" id="report-billing-to" value="${today}" />
+          <button class="btn btn-primary" id="report-billing-btn">Baixar CSV</button>
+        </div>
+      </div>
+    ` : ''}
+  `;
+
+  document.getElementById('report-agenda-btn').onclick = async (e) => {
+    const date = document.getElementById('report-agenda-date').value;
+    if (!date) return;
+    const btn = e.target;
+    btn.disabled = true;
+    try {
+      await downloadFile('/api/reports/daily-agenda', { date }, `agenda-${date}.csv`);
+    } catch (err) {
+      toast(apiErrorMessage(err), 'error');
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  const billingBtn = document.getElementById('report-billing-btn');
+  if (billingBtn) {
+    billingBtn.onclick = async (e) => {
+      const from = document.getElementById('report-billing-from').value;
+      const to = document.getElementById('report-billing-to').value;
+      if (!from || !to) return;
+      const btn = e.target;
+      btn.disabled = true;
+      try {
+        await downloadFile('/api/reports/billing', { from, to }, `faturamento-${from}_a_${to}.csv`);
+      } catch (err) {
+        toast(apiErrorMessage(err), 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    };
+  }
 }
 
 /* ======================= View: Users (ADMIN only) ======================= */
@@ -1431,6 +1724,51 @@ function setupLogin() {
   });
 }
 
+function openChangePasswordForm() {
+  const modal = openModal('Trocar senha', `
+    <div id="change-password-error"></div>
+    <form id="change-password-form">
+      <div class="field">
+        <label>Senha atual</label>
+        <input name="currentPassword" type="password" required autocomplete="current-password" />
+      </div>
+      <div class="field">
+        <label>Nova senha</label>
+        <input name="newPassword" type="password" minlength="6" required autocomplete="new-password" />
+        <div class="hint">Mínimo de 6 caracteres.</div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="change-password-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="change-password-submit">Salvar</button>
+      </div>
+    </form>
+  `);
+
+  modal.querySelector('#change-password-cancel').onclick = closeModal;
+  modal.querySelector('#change-password-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const body = {
+      currentPassword: fd.get('currentPassword'),
+      newPassword: fd.get('newPassword'),
+    };
+    const btn = modal.querySelector('#change-password-submit');
+    btn.disabled = true;
+    try {
+      await api('/api/users/me/password', { method: 'PATCH', body });
+      toast('Senha atualizada.');
+      closeModal();
+    } catch (err) {
+      formError(modal.querySelector('#change-password-error'), err);
+      btn.disabled = false;
+    }
+  };
+}
+
+function setupChangePassword() {
+  document.getElementById('change-password-btn').addEventListener('click', openChangePasswordForm);
+}
+
 function setupLogout() {
   document.getElementById('logout-btn').addEventListener('click', async () => {
     try {
@@ -1446,6 +1784,7 @@ function setupLogout() {
 
 document.addEventListener('DOMContentLoaded', () => {
   setupLogin();
+  setupChangePassword();
   setupLogout();
   renderRoot();
 });

@@ -311,6 +311,35 @@ tbody tr:hover { background: rgba(124,156,255,0.05); }
 .status-COMPLETED { background: rgba(127,224,168,0.12); color: var(--vet); }
 .status-CANCELED { background: rgba(255,128,128,0.12); color: var(--danger); }
 
+.report-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.report-card h3 { margin: 0 0 4px; }
+.report-card .toolbar { margin: 12px 0 0; }
+
+.attachment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.attachment-list li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.attachment-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .empty-state {
   text-align: center;
   padding: 48px 20px;

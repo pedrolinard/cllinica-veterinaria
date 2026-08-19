@@ -65,7 +65,7 @@ class AppointmentConflictTest extends AbstractIntegrationTest {
         String token = tokenFor(admin);
         LocalDateTime start = LocalDateTime.now().plusDays(1).truncatedTo(ChronoUnit.MINUTES);
 
-        AppointmentRequest first = new AppointmentRequest(start, 30, "Consulta de rotina", pet.getId(), vet.getId());
+        AppointmentRequest first = new AppointmentRequest(start, 30, "Consulta de rotina", pet.getId(), vet.getId(), null);
         mockMvc.perform(post("/api/appointments")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -74,7 +74,7 @@ class AppointmentConflictTest extends AbstractIntegrationTest {
 
         // Começa 15 minutos depois do início da primeira consulta (que dura 30min) -> sobrepõe.
         AppointmentRequest overlapping = new AppointmentRequest(
-                start.plusMinutes(15), 30, "Outra consulta", otherPet.getId(), vet.getId()
+                start.plusMinutes(15), 30, "Outra consulta", otherPet.getId(), vet.getId(), null
         );
 
         mockMvc.perform(post("/api/appointments")
@@ -90,7 +90,7 @@ class AppointmentConflictTest extends AbstractIntegrationTest {
         String token = tokenFor(admin);
         LocalDateTime start = LocalDateTime.now().plusDays(1).truncatedTo(ChronoUnit.MINUTES);
 
-        AppointmentRequest first = new AppointmentRequest(start, 30, "Consulta 1", pet.getId(), vet.getId());
+        AppointmentRequest first = new AppointmentRequest(start, 30, "Consulta 1", pet.getId(), vet.getId(), null);
         mockMvc.perform(post("/api/appointments")
                         .header("Authorization", "Bearer " + token)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -99,7 +99,7 @@ class AppointmentConflictTest extends AbstractIntegrationTest {
 
         // Começa exatamente quando a primeira termina -> não sobrepõe.
         AppointmentRequest sequential = new AppointmentRequest(
-                start.plusMinutes(30), 30, "Consulta 2", otherPet.getId(), vet.getId()
+                start.plusMinutes(30), 30, "Consulta 2", otherPet.getId(), vet.getId(), null
         );
 
         mockMvc.perform(post("/api/appointments")
@@ -115,7 +115,7 @@ class AppointmentConflictTest extends AbstractIntegrationTest {
         LocalDateTime start = LocalDateTime.now().plusDays(1).truncatedTo(ChronoUnit.MINUTES);
 
         // "admin" tem role ADMIN, não VET.
-        AppointmentRequest request = new AppointmentRequest(start, 30, "Inválida", pet.getId(), admin.getId());
+        AppointmentRequest request = new AppointmentRequest(start, 30, "Inválida", pet.getId(), admin.getId(), null);
 
         mockMvc.perform(post("/api/appointments")
                         .header("Authorization", "Bearer " + token)

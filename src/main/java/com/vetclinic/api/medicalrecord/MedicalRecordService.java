@@ -48,7 +48,10 @@ public class MedicalRecordService {
                 .pet(appointment.getPet())
                 .build();
 
-        return MedicalRecordResponse.from(medicalRecordRepository.save(record));
+        // saveAndFlush (não save): força o INSERT agora, para que o @CreationTimestamp
+        // já esteja preenchido no objeto retornado — com save() simples, o flush só
+        // acontece no commit da transação, e a resposta sairia com createdAt nulo.
+        return MedicalRecordResponse.from(medicalRecordRepository.saveAndFlush(record));
     }
 
     public Page<MedicalRecordResponse> findByPet(UUID petId, Pageable pageable) {

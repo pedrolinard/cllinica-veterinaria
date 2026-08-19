@@ -40,6 +40,12 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(401, "Não autorizado", "Email ou senha inválidos."));
     }
 
+    @ExceptionHandler(InvalidCurrentPasswordException.class)
+    public ResponseEntity<ErrorResponse> handleInvalidCurrentPassword(InvalidCurrentPasswordException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(ErrorResponse.of(401, "Não autorizado", ex.getMessage()));
+    }
+
     @ExceptionHandler(TooManyAttemptsException.class)
     public ResponseEntity<ErrorResponse> handleTooManyAttempts(TooManyAttemptsException ex) {
         return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)

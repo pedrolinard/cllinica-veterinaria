@@ -39,12 +39,13 @@ public class PetController {
     }
 
     @GetMapping
-    @Operation(summary = "Lista pets de forma paginada, com filtro opcional por cliente")
+    @Operation(summary = "Lista pets de forma paginada, com filtro opcional por cliente e busca por nome")
     public ResponseEntity<Page<PetResponse>> findAll(
             @RequestParam(required = false) UUID clientId,
+            @RequestParam(required = false) String q,
             @PageableDefault(size = 20, sort = "name") Pageable pageable
     ) {
-        return ResponseEntity.ok(petService.findAll(clientId, pageable));
+        return ResponseEntity.ok(petService.findAll(clientId, q, pageable));
     }
 
     @GetMapping("/{id}")

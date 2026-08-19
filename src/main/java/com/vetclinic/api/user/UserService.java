@@ -2,7 +2,9 @@ package com.vetclinic.api.user;
 
 import com.vetclinic.api.appointment.AppointmentRepository;
 import com.vetclinic.api.common.exception.ConflictException;
+import com.vetclinic.api.common.exception.InvalidCurrentPasswordException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
+import com.vetclinic.api.user.dto.ChangePasswordRequest;
 import com.vetclinic.api.user.dto.CreateUserRequest;
 import com.vetclinic.api.user.dto.UpdateUserRequest;
 import com.vetclinic.api.user.dto.UserResponse;
@@ -83,6 +85,18 @@ public class UserService {
         }
 
         userRepository.deleteById(id);
+    }
+
+    @Transactional
+    public void changeOwnPassword(UUID id, ChangePasswordRequest request) {
+        User user = getOrThrow(id);
+
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPasswordHash())) {
+            throw new InvalidCurrentPasswordException("Senha atual incorreta.");
+        }
+
+        user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
     }
 
     public User getOrThrow(UUID id) {

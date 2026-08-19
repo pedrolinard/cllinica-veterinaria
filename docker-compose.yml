@@ -36,6 +36,10 @@ services:
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?defina SEED_ADMIN_PASSWORD em um arquivo .env antes de subir}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
       PORT: 8080
+      # Lembrete de consulta por email: desligado por padrão. Para ligar, defina
+      # REMINDERS_ENABLED=true e as credenciais SMTP (SPRING_MAIL_HOST,
+      # SPRING_MAIL_USERNAME, SPRING_MAIL_PASSWORD) num arquivo .env.
+      REMINDERS_ENABLED: ${REMINDERS_ENABLED:-false}
     ports:
       - "8080:8080"
 

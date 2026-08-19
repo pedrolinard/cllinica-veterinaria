@@ -1,5 +1,7 @@
 package com.vetclinic.api.client;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
@@ -8,4 +10,6 @@ import java.util.UUID;
 public interface ClientRepository extends JpaRepository<Client, UUID> {
 
     Optional<Client> findByEmail(String email);
+
+    Page<Client> findByNameContainingIgnoreCase(String name, Pageable pageable);
 }

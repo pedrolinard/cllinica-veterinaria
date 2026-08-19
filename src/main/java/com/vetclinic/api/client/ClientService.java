@@ -11,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.UUID;
 
@@ -35,8 +36,11 @@ public class ClientService {
         return ClientResponse.from(clientRepository.save(client));
     }
 
-    public Page<ClientResponse> findAll(Pageable pageable) {
-        return clientRepository.findAll(pageable).map(ClientResponse::from);
+    public Page<ClientResponse> findAll(String q, Pageable pageable) {
+        Page<Client> page = StringUtils.hasText(q)
+                ? clientRepository.findByNameContainingIgnoreCase(q.trim(), pageable)
+                : clientRepository.findAll(pageable);
+        return page.map(ClientResponse::from);
     }
 
     public ClientResponse findById(UUID id) {

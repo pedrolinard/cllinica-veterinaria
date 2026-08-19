@@ -8,6 +8,8 @@ import com.vetclinic.api.common.exception.ResourceNotFoundException;
 import com.vetclinic.api.medicalrecord.MedicalRecordRepository;
 import com.vetclinic.api.pet.Pet;
 import com.vetclinic.api.pet.PetService;
+import com.vetclinic.api.service.ClinicService;
+import com.vetclinic.api.service.ClinicServiceManager;
 import com.vetclinic.api.user.Role;
 import com.vetclinic.api.user.User;
 import com.vetclinic.api.user.UserService;
@@ -33,11 +35,13 @@ public class AppointmentService {
     private final PetService petService;
     private final UserService userService;
     private final MedicalRecordRepository medicalRecordRepository;
+    private final ClinicServiceManager clinicServiceManager;
 
     @Transactional
     public AppointmentResponse create(AppointmentRequest request) {
         Pet pet = petService.getOrThrow(request.petId());
         User vet = requireVet(request.vetId());
+        ClinicService service = resolveService(request.serviceId());
         int durationMin = request.durationMin() != null ? request.durationMin() : 30;
 
         assertNoConflict(vet.getId(), request.scheduledAt(), durationMin, null);
@@ -48,6 +52,7 @@ public class AppointmentService {
                 .reason(request.reason())
                 .pet(pet)
                 .vet(vet)
+                .service(service)
                 .status(AppointmentStatus.SCHEDULED)
                 .build();
 
@@ -75,6 +80,7 @@ public class AppointmentService {
         Appointment appointment = getOrThrow(id);
         Pet pet = petService.getOrThrow(request.petId());
         User vet = requireVet(request.vetId());
+        ClinicService service = resolveService(request.serviceId());
         int durationMin = request.durationMin() != null ? request.durationMin() : 30;
 
         assertNoConflict(vet.getId(), request.scheduledAt(), durationMin, appointment.getId());
@@ -84,6 +90,7 @@ public class AppointmentService {
         appointment.setReason(request.reason());
         appointment.setPet(pet);
         appointment.setVet(vet);
+        appointment.setService(service);
 
         return AppointmentResponse.from(appointmentRepository.save(appointment));
     }
@@ -114,6 +121,10 @@ public class AppointmentService {
     public Appointment getOrThrow(UUID id) {
         return appointmentRepository.findById(id)
                 .orElseThrow(() -> ResourceNotFoundException.of("Consulta", id));
+    }
+
+    private ClinicService resolveService(UUID serviceId) {
+        return serviceId != null ? clinicServiceManager.getOrThrow(serviceId) : null;
     }
 
     private User requireVet(UUID vetId) {

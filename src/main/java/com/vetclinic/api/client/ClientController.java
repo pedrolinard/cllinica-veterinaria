@@ -38,9 +38,12 @@ public class ClientController {
     }
 
     @GetMapping
-    @Operation(summary = "Lista clientes de forma paginada")
-    public ResponseEntity<Page<ClientResponse>> findAll(@PageableDefault(size = 20, sort = "name") Pageable pageable) {
-        return ResponseEntity.ok(clientService.findAll(pageable));
+    @Operation(summary = "Lista clientes de forma paginada, com busca opcional por nome")
+    public ResponseEntity<Page<ClientResponse>> findAll(
+            @RequestParam(required = false) String q,
+            @PageableDefault(size = 20, sort = "name") Pageable pageable
+    ) {
+        return ResponseEntity.ok(clientService.findAll(q, pageable));
     }
 
     @GetMapping("/{id}")

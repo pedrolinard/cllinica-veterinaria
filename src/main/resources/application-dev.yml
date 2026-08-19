@@ -10,3 +10,5 @@ spring:
       path: /h2-console
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
+  flyway:
+    locations: classpath:db/migration,classpath:db/migration-h2
