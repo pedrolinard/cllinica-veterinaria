@@ -1,5 +1,6 @@
 package com.vetclinic.api.user;
 
+import com.vetclinic.api.appointment.AppointmentRepository;
 import com.vetclinic.api.common.exception.ConflictException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
 import com.vetclinic.api.user.dto.CreateUserRequest;
@@ -20,6 +21,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AppointmentRepository appointmentRepository;
 
     @Transactional
     public UserResponse create(CreateUserRequest request) {
@@ -71,6 +73,15 @@ public class UserService {
         if (!userRepository.existsById(id)) {
             throw ResourceNotFoundException.of("Usuário", id);
         }
+
+        long appointments = appointmentRepository.countByVetId(id);
+        if (appointments > 0) {
+            throw new ConflictException(
+                    "Não é possível excluir: este funcionário possui " + appointments
+                            + " consulta(s) vinculada(s) como veterinário."
+            );
+        }
+
         userRepository.deleteById(id);
     }
 

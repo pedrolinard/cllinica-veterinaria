@@ -2,6 +2,7 @@ package com.vetclinic.api.config;
 
 import com.vetclinic.api.security.CustomUserDetailsService;
 import com.vetclinic.api.security.JwtAuthenticationFilter;
+import com.vetclinic.api.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,7 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final CustomUserDetailsService userDetailsService;
+    private final RestAuthenticationEntryPoint restAuthenticationEntryPoint;
 
     private static final String[] PUBLIC_ENDPOINTS = {
             "/",
@@ -49,6 +51,7 @@ public class SecurityConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(restAuthenticationEntryPoint))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()

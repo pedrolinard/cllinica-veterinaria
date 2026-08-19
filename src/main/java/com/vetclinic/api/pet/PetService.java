@@ -1,7 +1,9 @@
 package com.vetclinic.api.pet;
 
+import com.vetclinic.api.appointment.AppointmentRepository;
 import com.vetclinic.api.client.Client;
 import com.vetclinic.api.client.ClientService;
+import com.vetclinic.api.common.exception.ConflictException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
 import com.vetclinic.api.pet.dto.PetRequest;
 import com.vetclinic.api.pet.dto.PetResponse;
@@ -20,6 +22,7 @@ public class PetService {
 
     private final PetRepository petRepository;
     private final ClientService clientService;
+    private final AppointmentRepository appointmentRepository;
 
     @Transactional
     public PetResponse create(PetRequest request) {
@@ -70,6 +73,15 @@ public class PetService {
         if (!petRepository.existsById(id)) {
             throw ResourceNotFoundException.of("Pet", id);
         }
+
+        long appointments = appointmentRepository.countByPetId(id);
+        if (appointments > 0) {
+            throw new ConflictException(
+                    "Não é possível excluir: este pet possui " + appointments
+                            + " consulta(s) vinculada(s). Remova ou cancele as consultas primeiro."
+            );
+        }
+
         petRepository.deleteById(id);
     }
 

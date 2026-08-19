@@ -22,4 +22,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
     List<Appointment> findByVetIdAndStatusNotAndScheduledAtBetween(
             UUID vetId, AppointmentStatus excludedStatus, LocalDateTime from, LocalDateTime to
     );
+
+    long countByPetId(UUID petId);
+
+    long countByVetId(UUID vetId);
 }

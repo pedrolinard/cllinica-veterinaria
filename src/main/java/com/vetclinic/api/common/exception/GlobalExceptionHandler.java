@@ -1,6 +1,8 @@
 package com.vetclinic.api.common.exception;
 
 import jakarta.validation.ConstraintViolationException;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -17,6 +19,7 @@ import java.util.List;
  * consistentes no formato {@link ErrorResponse}.
  */
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -65,8 +68,23 @@ public class GlobalExceptionHandler {
                 .body(ErrorResponse.of(400, "Requisição inválida", ex.getMessage()));
     }
 
+    /**
+     * Rede de segurança para violações de integridade não antecipadas por uma checagem
+     * explícita no service (ex: restrição de chave estrangeira). Os casos conhecidos
+     * (excluir pet/veterinário/cliente/consulta com vínculo) já retornam 409 com uma
+     * mensagem específica antes de chegar aqui — este handler evita que qualquer caso
+     * não previsto vaze como 500.
+     */
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        log.warn("Violação de integridade de dados: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(ErrorResponse.of(409, "Conflito", "Não é possível concluir a operação: há outros registros vinculados a este item."));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
+        log.error("Erro inesperado ao processar requisição", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ErrorResponse.of(500, "Erro interno", "Ocorreu um erro inesperado no servidor."));
     }

@@ -5,6 +5,7 @@ import com.vetclinic.api.appointment.dto.AppointmentResponse;
 import com.vetclinic.api.appointment.dto.UpdateStatusRequest;
 import com.vetclinic.api.common.exception.ConflictException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
+import com.vetclinic.api.medicalrecord.MedicalRecordRepository;
 import com.vetclinic.api.pet.Pet;
 import com.vetclinic.api.pet.PetService;
 import com.vetclinic.api.user.Role;
@@ -31,6 +32,7 @@ public class AppointmentService {
     private final AppointmentRepository appointmentRepository;
     private final PetService petService;
     private final UserService userService;
+    private final MedicalRecordRepository medicalRecordRepository;
 
     @Transactional
     public AppointmentResponse create(AppointmentRequest request) {
@@ -99,6 +101,13 @@ public class AppointmentService {
         if (!appointmentRepository.existsById(id)) {
             throw ResourceNotFoundException.of("Consulta", id);
         }
+
+        if (medicalRecordRepository.existsByAppointmentId(id)) {
+            throw new ConflictException(
+                    "Não é possível excluir: esta consulta já possui um prontuário registrado."
+            );
+        }
+
         appointmentRepository.deleteById(id);
     }
 

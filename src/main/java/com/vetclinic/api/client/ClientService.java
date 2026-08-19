@@ -1,8 +1,11 @@
 package com.vetclinic.api.client;
 
+import com.vetclinic.api.appointment.AppointmentRepository;
 import com.vetclinic.api.client.dto.ClientRequest;
 import com.vetclinic.api.client.dto.ClientResponse;
+import com.vetclinic.api.common.exception.ConflictException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
+import com.vetclinic.api.pet.PetRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,6 +20,8 @@ import java.util.UUID;
 public class ClientService {
 
     private final ClientRepository clientRepository;
+    private final PetRepository petRepository;
+    private final AppointmentRepository appointmentRepository;
 
     @Transactional
     public ClientResponse create(ClientRequest request) {
@@ -50,10 +55,22 @@ public class ClientService {
 
     @Transactional
     public void delete(UUID id) {
-        if (!clientRepository.existsById(id)) {
-            throw ResourceNotFoundException.of("Cliente", id);
+        Client client = getOrThrow(id);
+
+        // Consulta os pets diretamente (em vez de client.getPets()) para não depender do
+        // estado da coleção em memória, que pode não refletir pets criados depois que o
+        // Client já estava carregado no contexto de persistência da transação atual.
+        long appointments = petRepository.findByClientId(id, Pageable.unpaged()).stream()
+                .mapToLong(pet -> appointmentRepository.countByPetId(pet.getId()))
+                .sum();
+        if (appointments > 0) {
+            throw new ConflictException(
+                    "Não é possível excluir: os pets deste cliente possuem " + appointments
+                            + " consulta(s) vinculada(s). Remova as consultas primeiro."
+            );
         }
-        clientRepository.deleteById(id);
+
+        clientRepository.delete(client);
     }
 
     public Client getOrThrow(UUID id) {
