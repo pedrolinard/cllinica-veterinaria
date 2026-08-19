@@ -51,7 +51,13 @@ public class SecurityConfig {
             "/swagger-ui.html",
             "/v3/api-docs/**",
             "/h2-console/**",
-            "/actuator/health"
+            "/actuator/health",
+            // Sem isso, um 403 lançado no nível de filtro (ex: a regra do /actuator/**
+            // abaixo) gera um forward interno pro /error que — sem estar liberado —
+            // é reavaliado do zero pela cadeia de segurança; nesse segundo passo o
+            // contexto já não carrega mais a autenticação original, o que faz o
+            // pedido parecer anônimo e vira um 401 confuso em vez do 403 esperado.
+            "/error"
     };
 
     @Bean
@@ -63,6 +69,10 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
+                        // /actuator/health fica público (usado por health checks de infra); o
+                        // resto do Actuator (métricas, env, etc.) expõe detalhes internos, então
+                        // fica restrito a ADMIN em vez de "qualquer autenticado".
+                        .requestMatchers("/actuator/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

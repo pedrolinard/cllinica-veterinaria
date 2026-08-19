@@ -9,6 +9,8 @@ import com.vetclinic.api.medicalrecord.MedicalRecord;
 import com.vetclinic.api.medicalrecord.MedicalRecordRepository;
 import com.vetclinic.api.pet.Pet;
 import com.vetclinic.api.pet.PetRepository;
+import com.vetclinic.api.service.ClinicService;
+import com.vetclinic.api.service.ClinicServiceRepository;
 import com.vetclinic.api.user.Role;
 import com.vetclinic.api.user.User;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,6 +45,9 @@ class DeletionConflictTest extends AbstractIntegrationTest {
     @Autowired
     private MedicalRecordRepository medicalRecordRepository;
 
+    @Autowired
+    private ClinicServiceRepository clinicServiceRepository;
+
     private User admin;
     private User vet;
     private Client client;
@@ -66,12 +71,17 @@ class DeletionConflictTest extends AbstractIntegrationTest {
     }
 
     private Appointment saveAppointment(AppointmentStatus status) {
+        return saveAppointment(status, null);
+    }
+
+    private Appointment saveAppointment(AppointmentStatus status, ClinicService service) {
         return appointmentRepository.save(Appointment.builder()
                 .scheduledAt(LocalDateTime.now().plusDays(1).truncatedTo(ChronoUnit.MINUTES))
                 .durationMin(30)
                 .reason("Consulta de teste")
                 .pet(pet)
                 .vet(vet)
+                .service(service)
                 .status(status)
                 .build());
     }
@@ -129,6 +139,21 @@ class DeletionConflictTest extends AbstractIntegrationTest {
         String token = tokenFor(admin);
 
         mockMvc.perform(delete("/api/appointments/" + appointment.getId())
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Conflito"));
+    }
+
+    @Test
+    void excluirServicoVinculadoAConsultaRetorna409() throws Exception {
+        ClinicService service = clinicServiceRepository.save(ClinicService.builder()
+                .name("Consulta de rotina")
+                .priceCents(15000)
+                .build());
+        saveAppointment(AppointmentStatus.SCHEDULED, service);
+        String token = tokenFor(admin);
+
+        mockMvc.perform(delete("/api/services/" + service.getId())
                         .header("Authorization", "Bearer " + token))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error").value("Conflito"));

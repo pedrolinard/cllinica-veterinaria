@@ -1,6 +1,8 @@
 package com.vetclinic.api.client;
 
 import com.vetclinic.api.appointment.AppointmentRepository;
+import com.vetclinic.api.audit.AuditAction;
+import com.vetclinic.api.audit.AuditService;
 import com.vetclinic.api.client.dto.ClientRequest;
 import com.vetclinic.api.client.dto.ClientResponse;
 import com.vetclinic.api.common.exception.ConflictException;
@@ -23,6 +25,7 @@ public class ClientService {
     private final ClientRepository clientRepository;
     private final PetRepository petRepository;
     private final AppointmentRepository appointmentRepository;
+    private final AuditService auditService;
 
     @Transactional
     public ClientResponse create(ClientRequest request) {
@@ -75,6 +78,7 @@ public class ClientService {
         }
 
         clientRepository.delete(client);
+        auditService.record("Client", id, AuditAction.DELETE, "Cliente removido: " + client.getName());
     }
 
     public Client getOrThrow(UUID id) {

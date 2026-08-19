@@ -33,6 +33,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
     long countByVetId(UUID vetId);
 
+    long countByServiceId(UUID serviceId);
+
     @Query("select a.status as status, count(a) as count from Appointment a group by a.status")
     List<StatusCount> countGroupedByStatus();
 

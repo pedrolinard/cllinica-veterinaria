@@ -310,6 +310,9 @@ tbody tr:hover { background: rgba(124,156,255,0.05); }
 .status-CONFIRMED { background: rgba(94,234,212,0.12); color: var(--accent); }
 .status-COMPLETED { background: rgba(127,224,168,0.12); color: var(--vet); }
 .status-CANCELED { background: rgba(255,128,128,0.12); color: var(--danger); }
+.audit-action-CREATE { background: rgba(127,224,168,0.12); color: var(--vet); }
+.audit-action-UPDATE { background: rgba(124,156,255,0.12); color: var(--accent-2); }
+.audit-action-DELETE { background: rgba(255,128,128,0.12); color: var(--danger); }
 
 .report-card {
   background: var(--card);

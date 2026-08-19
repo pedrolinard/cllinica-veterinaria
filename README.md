@@ -15,6 +15,9 @@ API REST para gestão de uma clínica veterinária, construída em **Java 21 + S
 - **Relatórios em CSV**: agenda do dia e faturamento por serviço num período.
 - **Lembrete de consulta por email** na véspera — desligado por padrão, liga com `REMINDERS_ENABLED=true` + SMTP configurado.
 - **Troca de senha self-service**, sem depender do ADMIN.
+- **Auditoria**: log append-only de criação/alteração/exclusão de dados sensíveis (funcionários, consultas, prontuários, serviços), com quem fez, o quê e quando (`/api/audit-log`, tela "Auditoria" no painel).
+- **Observabilidade**: `/actuator/health` (público, para health check de infra), `/actuator/info` e `/actuator/metrics` (ADMIN); logs em JSON estruturado no perfil `prod`.
+- **CI**: GitHub Actions builda e roda a suíte de testes em todo push/PR para `main`.
 - **Documentação OpenAPI/Swagger** navegável em `/docs`.
 - **Seed automático** de dados de exemplo ao subir a aplicação pela primeira vez.
 
@@ -43,8 +46,11 @@ src/main/java/com/vetclinic/api/
 ├── client/             # tutores
 ├── pet/                # pets
 ├── appointment/        # agendamento de consultas + regra de conflito de horário
-├── medicalrecord/      # prontuários médicos
+├── medicalrecord/      # prontuários médicos + anexos
 ├── service/            # catálogo de serviços da clínica
+├── dashboard/          # estatísticas agregadas do painel
+├── report/             # relatórios em CSV (agenda do dia, faturamento)
+├── audit/              # log de auditoria (quem alterou o quê e quando)
 ├── security/           # JWT, UserDetails, filtro de autenticação
 ├── config/             # Spring Security, OpenAPI, seed de dados
 └── common/             # BaseEntity, exceções e tratamento de erro global
@@ -122,6 +128,9 @@ Os testes de integração usam `MockMvc` + H2 em memória (perfil `test`) e cobr
 | GET | `/api/dashboard/stats` | Estatísticas agregadas do painel | Autenticado |
 | GET | `/api/reports/daily-agenda` | Agenda de um dia (CSV) | ADMIN/RECEPTIONIST |
 | GET | `/api/reports/billing` | Faturamento por serviço num período (CSV) | ADMIN |
+| GET | `/api/audit-log` | Trilha de auditoria (filtro `?entityType=`) | ADMIN |
+| GET | `/actuator/health` | Health check | Público |
+| GET | `/actuator/info`, `/actuator/metrics` | Metadados e métricas da aplicação | ADMIN |
 
 Lista completa, com schemas de request/response, em `/docs`.
 
@@ -129,8 +138,7 @@ Lista completa, com schemas de request/response, em `/docs`.
 
 - Exportação de relatórios também em PDF (hoje só CSV).
 - Portal do tutor: agendar e ver o prontuário do próprio pet.
-- Auditoria (quem alterou o quê e quando).
-- CI: build + testes em cada PR.
+- Multi-clínica, se o modelo de negócio pedir.
 - Testes unitários adicionais para `AppointmentService` isolando o repositório com mocks (Mockito), complementando os testes de integração já existentes.
 
 ---

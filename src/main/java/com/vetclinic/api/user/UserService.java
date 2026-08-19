@@ -1,6 +1,8 @@
 package com.vetclinic.api.user;
 
 import com.vetclinic.api.appointment.AppointmentRepository;
+import com.vetclinic.api.audit.AuditAction;
+import com.vetclinic.api.audit.AuditService;
 import com.vetclinic.api.common.exception.ConflictException;
 import com.vetclinic.api.common.exception.InvalidCurrentPasswordException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
@@ -24,6 +26,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AppointmentRepository appointmentRepository;
+    private final AuditService auditService;
 
     @Transactional
     public UserResponse create(CreateUserRequest request) {
@@ -38,7 +41,10 @@ public class UserService {
                 .role(request.role())
                 .build();
 
-        return UserResponse.from(userRepository.save(user));
+        User saved = userRepository.save(user);
+        auditService.record("User", saved.getId(), AuditAction.CREATE,
+                "Funcionário criado: " + saved.getEmail() + " (" + saved.getRole() + ")");
+        return UserResponse.from(saved);
     }
 
     public List<UserResponse> findAll() {
@@ -56,6 +62,7 @@ public class UserService {
     @Transactional
     public UserResponse update(UUID id, UpdateUserRequest request) {
         User user = getOrThrow(id);
+        Role previousRole = user.getRole();
 
         userRepository.findByEmail(request.email()).ifPresent(existing -> {
             if (!existing.getId().equals(id)) {
@@ -67,14 +74,17 @@ public class UserService {
         user.setEmail(request.email());
         user.setRole(request.role());
 
-        return UserResponse.from(userRepository.save(user));
+        UserResponse response = UserResponse.from(userRepository.save(user));
+        if (previousRole != request.role()) {
+            auditService.record("User", id, AuditAction.UPDATE,
+                    "Papel de " + user.getEmail() + " alterado de " + previousRole + " para " + request.role());
+        }
+        return response;
     }
 
     @Transactional
     public void delete(UUID id) {
-        if (!userRepository.existsById(id)) {
-            throw ResourceNotFoundException.of("Usuário", id);
-        }
+        User user = getOrThrow(id);
 
         long appointments = appointmentRepository.countByVetId(id);
         if (appointments > 0) {
@@ -84,7 +94,8 @@ public class UserService {
             );
         }
 
-        userRepository.deleteById(id);
+        userRepository.delete(user);
+        auditService.record("User", id, AuditAction.DELETE, "Funcionário removido: " + user.getEmail());
     }
 
     @Transactional

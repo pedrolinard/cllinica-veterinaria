@@ -3,6 +3,8 @@ package com.vetclinic.api.medicalrecord;
 import com.vetclinic.api.appointment.Appointment;
 import com.vetclinic.api.appointment.AppointmentService;
 import com.vetclinic.api.appointment.AppointmentStatus;
+import com.vetclinic.api.audit.AuditAction;
+import com.vetclinic.api.audit.AuditService;
 import com.vetclinic.api.common.exception.ConflictException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
 import com.vetclinic.api.medicalrecord.dto.MedicalRecordRequest;
@@ -22,6 +24,7 @@ public class MedicalRecordService {
 
     private final MedicalRecordRepository medicalRecordRepository;
     private final AppointmentService appointmentService;
+    private final AuditService auditService;
 
     @Transactional
     public MedicalRecordResponse create(MedicalRecordRequest request) {
@@ -51,7 +54,10 @@ public class MedicalRecordService {
         // saveAndFlush (não save): força o INSERT agora, para que o @CreationTimestamp
         // já esteja preenchido no objeto retornado — com save() simples, o flush só
         // acontece no commit da transação, e a resposta sairia com createdAt nulo.
-        return MedicalRecordResponse.from(medicalRecordRepository.saveAndFlush(record));
+        MedicalRecord saved = medicalRecordRepository.saveAndFlush(record);
+        auditService.record("MedicalRecord", saved.getId(), AuditAction.CREATE,
+                "Prontuário registrado: pet " + saved.getPet().getName());
+        return MedicalRecordResponse.from(saved);
     }
 
     public Page<MedicalRecordResponse> findByPet(UUID petId, Pageable pageable) {
@@ -75,10 +81,10 @@ public class MedicalRecordService {
 
     @Transactional
     public void delete(UUID id) {
-        if (!medicalRecordRepository.existsById(id)) {
-            throw ResourceNotFoundException.of("Prontuário", id);
-        }
-        medicalRecordRepository.deleteById(id);
+        MedicalRecord record = getOrThrow(id);
+        medicalRecordRepository.delete(record);
+        auditService.record("MedicalRecord", id, AuditAction.DELETE,
+                "Prontuário removido: pet " + record.getPet().getName());
     }
 
     private MedicalRecord getOrThrow(UUID id) {

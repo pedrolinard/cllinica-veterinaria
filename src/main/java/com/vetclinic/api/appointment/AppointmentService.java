@@ -3,6 +3,8 @@ package com.vetclinic.api.appointment;
 import com.vetclinic.api.appointment.dto.AppointmentRequest;
 import com.vetclinic.api.appointment.dto.AppointmentResponse;
 import com.vetclinic.api.appointment.dto.UpdateStatusRequest;
+import com.vetclinic.api.audit.AuditAction;
+import com.vetclinic.api.audit.AuditService;
 import com.vetclinic.api.common.exception.ConflictException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
 import com.vetclinic.api.medicalrecord.MedicalRecordRepository;
@@ -36,6 +38,7 @@ public class AppointmentService {
     private final UserService userService;
     private final MedicalRecordRepository medicalRecordRepository;
     private final ClinicServiceManager clinicServiceManager;
+    private final AuditService auditService;
 
     @Transactional
     public AppointmentResponse create(AppointmentRequest request) {
@@ -98,16 +101,20 @@ public class AppointmentService {
     @Transactional
     public AppointmentResponse updateStatus(UUID id, UpdateStatusRequest request) {
         Appointment appointment = getOrThrow(id);
-        assertValidTransition(appointment.getStatus(), request.status());
+        AppointmentStatus previous = appointment.getStatus();
+        assertValidTransition(previous, request.status());
         appointment.setStatus(request.status());
-        return AppointmentResponse.from(appointmentRepository.save(appointment));
+        AppointmentResponse response = AppointmentResponse.from(appointmentRepository.save(appointment));
+        if (previous != request.status()) {
+            auditService.record("Appointment", id, AuditAction.UPDATE,
+                    "Status alterado de " + previous + " para " + request.status());
+        }
+        return response;
     }
 
     @Transactional
     public void delete(UUID id) {
-        if (!appointmentRepository.existsById(id)) {
-            throw ResourceNotFoundException.of("Consulta", id);
-        }
+        Appointment appointment = getOrThrow(id);
 
         if (medicalRecordRepository.existsByAppointmentId(id)) {
             throw new ConflictException(
@@ -115,7 +122,9 @@ public class AppointmentService {
             );
         }
 
-        appointmentRepository.deleteById(id);
+        appointmentRepository.delete(appointment);
+        auditService.record("Appointment", id, AuditAction.DELETE,
+                "Consulta removida: " + appointment.getPet().getName() + " em " + DISPLAY_FORMAT.format(appointment.getScheduledAt()));
     }
 
     public Appointment getOrThrow(UUID id) {

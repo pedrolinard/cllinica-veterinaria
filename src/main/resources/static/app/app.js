@@ -413,6 +413,7 @@ const NAV_ITEMS = [
   { hash: '#/services', label: 'Serviços', icon: '☰', roles: null },
   { hash: '#/reports', label: 'Relatórios', icon: '⤓', roles: ['ADMIN', 'RECEPTIONIST'] },
   { hash: '#/users', label: 'Funcionários', icon: '☺', roles: ['ADMIN'] },
+  { hash: '#/audit-log', label: 'Auditoria', icon: '☷', roles: ['ADMIN'] },
 ];
 
 function renderNav() {
@@ -445,6 +446,7 @@ const ROUTES = {
   '#/services': viewServices,
   '#/reports': viewReports,
   '#/users': viewUsers,
+  '#/audit-log': viewAuditLog,
 };
 
 async function router() {
@@ -1673,6 +1675,71 @@ function openUserForm(user) {
       btn.disabled = false;
     }
   };
+}
+
+/* ======================= View: Audit Log (ADMIN only) ======================= */
+
+const auditState = { page: 0, entityType: '' };
+
+const AUDIT_ENTITY_TYPES = [
+  'User', 'Client', 'Pet', 'Appointment', 'MedicalRecord', 'MedicalRecordAttachment', 'ClinicService',
+];
+
+const AUDIT_ACTION_LABELS = { CREATE: 'Criação', UPDATE: 'Alteração', DELETE: 'Exclusão' };
+
+async function viewAuditLog(main) {
+  main.innerHTML = `
+    <div class="view-header">
+      <div><h2>Auditoria</h2><p>Ações sensíveis registradas: quem, o quê e quando.</p></div>
+    </div>
+    <div class="toolbar">
+      <select id="audit-type-filter">
+        <option value="">Todos os tipos</option>
+        ${AUDIT_ENTITY_TYPES.map((t) => `<option value="${t}">${t}</option>`).join('')}
+      </select>
+    </div>
+    <div id="audit-table"></div>
+  `;
+
+  document.getElementById('audit-type-filter').onchange = (e) => {
+    auditState.entityType = e.target.value;
+    auditState.page = 0;
+    loadAuditLog();
+  };
+
+  await loadAuditLog();
+}
+
+async function loadAuditLog() {
+  const container = document.getElementById('audit-table');
+  const page = await api('/api/audit-log', { params: { entityType: auditState.entityType || undefined, page: auditState.page } });
+
+  if (page.content.length === 0) {
+    container.innerHTML = '<div class="empty-state">Nenhum registro de auditoria ainda.</div>';
+    return;
+  }
+
+  container.innerHTML = `
+    <table>
+      <thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Tipo</th><th>Detalhe</th></tr></thead>
+      <tbody>
+        ${page.content.map((a) => `
+          <tr>
+            <td>${fmtDate(a.performedAt)}</td>
+            <td>${escapeHtml(a.performedBy)}</td>
+            <td><span class="status-pill audit-action-${a.action}">${AUDIT_ACTION_LABELS[a.action] || a.action}</span></td>
+            <td>${escapeHtml(a.entityType)}</td>
+            <td>${escapeHtml(a.detail || '—')}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+
+  container.appendChild(paginationControls(page, (newPage) => {
+    auditState.page = newPage;
+    loadAuditLog();
+  }));
 }
 
 /* ======================= Auth flow ======================= */

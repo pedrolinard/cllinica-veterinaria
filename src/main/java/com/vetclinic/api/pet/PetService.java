@@ -1,6 +1,8 @@
 package com.vetclinic.api.pet;
 
 import com.vetclinic.api.appointment.AppointmentRepository;
+import com.vetclinic.api.audit.AuditAction;
+import com.vetclinic.api.audit.AuditService;
 import com.vetclinic.api.client.Client;
 import com.vetclinic.api.client.ClientService;
 import com.vetclinic.api.common.exception.ConflictException;
@@ -24,6 +26,7 @@ public class PetService {
     private final PetRepository petRepository;
     private final ClientService clientService;
     private final AppointmentRepository appointmentRepository;
+    private final AuditService auditService;
 
     @Transactional
     public PetResponse create(PetRequest request) {
@@ -79,9 +82,7 @@ public class PetService {
 
     @Transactional
     public void delete(UUID id) {
-        if (!petRepository.existsById(id)) {
-            throw ResourceNotFoundException.of("Pet", id);
-        }
+        Pet pet = getOrThrow(id);
 
         long appointments = appointmentRepository.countByPetId(id);
         if (appointments > 0) {
@@ -91,7 +92,8 @@ public class PetService {
             );
         }
 
-        petRepository.deleteById(id);
+        petRepository.delete(pet);
+        auditService.record("Pet", id, AuditAction.DELETE, "Pet removido: " + pet.getName());
     }
 
     public Pet getOrThrow(UUID id) {

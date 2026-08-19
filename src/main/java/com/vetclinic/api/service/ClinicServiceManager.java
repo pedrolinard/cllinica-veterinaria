@@ -1,5 +1,9 @@
 package com.vetclinic.api.service;
 
+import com.vetclinic.api.appointment.AppointmentRepository;
+import com.vetclinic.api.audit.AuditAction;
+import com.vetclinic.api.audit.AuditService;
+import com.vetclinic.api.common.exception.ConflictException;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
 import com.vetclinic.api.service.dto.ClinicServiceRequest;
 import com.vetclinic.api.service.dto.ClinicServiceResponse;
@@ -21,6 +25,8 @@ import java.util.UUID;
 public class ClinicServiceManager {
 
     private final ClinicServiceRepository repository;
+    private final AppointmentRepository appointmentRepository;
+    private final AuditService auditService;
 
     @Transactional
     public ClinicServiceResponse create(ClinicServiceRequest request) {
@@ -57,10 +63,18 @@ public class ClinicServiceManager {
 
     @Transactional
     public void delete(UUID id) {
-        if (!repository.existsById(id)) {
-            throw ResourceNotFoundException.of("Serviço", id);
+        ClinicService service = getOrThrow(id);
+
+        long appointments = appointmentRepository.countByServiceId(id);
+        if (appointments > 0) {
+            throw new ConflictException(
+                    "Não é possível excluir: este serviço está vinculado a " + appointments
+                            + " consulta(s). Desative-o em vez de excluir, se não for mais oferecido."
+            );
         }
-        repository.deleteById(id);
+
+        repository.delete(service);
+        auditService.record("ClinicService", id, AuditAction.DELETE, "Serviço removido: " + service.getName());
     }
 
     public ClinicService getOrThrow(UUID id) {

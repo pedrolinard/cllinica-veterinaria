@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- Prod: JSON estruturado no console, pronto pra ser coletado por qualquer
+         agregador de log (CloudWatch, Loki, ELK, etc.) sem parsing customizado. -->
+    <springProfile name="prod">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <includeMdcKeyName>traceId</includeMdcKeyName>
+                <customFields>{"app":"vet-clinic-api"}</customFields>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <!-- Dev/test: texto legível de humano, igual ao padrão do Spring Boot. -->
+    <springProfile name="dev,test,default">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>${CONSOLE_LOG_PATTERN}</pattern>
+            </encoder>
+        </appender>
+    </springProfile>
+
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+</configuration>

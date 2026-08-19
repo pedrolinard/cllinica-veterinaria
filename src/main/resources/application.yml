@@ -56,6 +56,25 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
+management:
+  endpoints:
+    web:
+      exposure:
+        # health fica público (ver SecurityConfig); info/metrics exigem ADMIN.
+        include: health,info,metrics
+  endpoint:
+    health:
+      # "never": /actuator/health é público, então não expõe detalhe de componente
+      # (ex: string de conexão do banco) para quem não está autenticado.
+      show-details: never
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: ${spring.application.name}
+
 logging:
   level:
     com.vetclinic.api: INFO

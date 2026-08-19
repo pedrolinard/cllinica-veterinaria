@@ -1,5 +1,7 @@
 package com.vetclinic.api.medicalrecord;
 
+import com.vetclinic.api.audit.AuditAction;
+import com.vetclinic.api.audit.AuditService;
 import com.vetclinic.api.common.exception.ResourceNotFoundException;
 import com.vetclinic.api.medicalrecord.dto.MedicalRecordAttachmentResponse;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +28,7 @@ public class MedicalRecordAttachmentService {
 
     private final MedicalRecordAttachmentRepository attachmentRepository;
     private final MedicalRecordRepository medicalRecordRepository;
+    private final AuditService auditService;
 
     @Transactional
     public MedicalRecordAttachmentResponse upload(UUID medicalRecordId, MultipartFile file) {
@@ -74,9 +77,9 @@ public class MedicalRecordAttachmentService {
 
     @Transactional
     public void delete(UUID id) {
-        if (!attachmentRepository.existsById(id)) {
-            throw ResourceNotFoundException.of("Anexo", id);
-        }
-        attachmentRepository.deleteById(id);
+        MedicalRecordAttachment attachment = getOrThrow(id);
+        attachmentRepository.delete(attachment);
+        auditService.record("MedicalRecordAttachment", id, AuditAction.DELETE,
+                "Anexo removido: " + attachment.getFilename());
     }
 }
