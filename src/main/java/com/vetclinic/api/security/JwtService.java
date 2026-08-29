@@ -22,13 +22,19 @@ public class JwtService {
 
     private final SecretKey signingKey;
     private final long expirationMinutes;
+    private final String issuer;
+    private final String audience;
 
     public JwtService(
             @Value("${app.jwt.secret}") String secret,
-            @Value("${app.jwt.expiration-minutes}") long expirationMinutes
+            @Value("${app.jwt.expiration-minutes}") long expirationMinutes,
+            @Value("${app.jwt.issuer:vet-clinic-api}") String issuer,
+            @Value("${app.jwt.audience:vet-clinic-web}") String audience
     ) {
         this.signingKey = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMinutes = expirationMinutes;
+        this.issuer = issuer;
+        this.audience = audience;
     }
 
     public String generateToken(UserPrincipal principal) {
@@ -37,6 +43,8 @@ public class JwtService {
 
         return Jwts.builder()
                 .id(UUID.randomUUID().toString())
+                .issuer(issuer)
+                .audience().add(audience).and()
                 .subject(principal.getEmail())
                 .claim("userId", principal.getId().toString())
                 .claim("name", principal.getName())
@@ -75,6 +83,8 @@ public class JwtService {
     private <T> T extractClaim(String token, Function<Claims, T> resolver) {
         Claims claims = Jwts.parser()
                 .verifyWith(signingKey)
+                .requireIssuer(issuer)
+                .requireAudience(audience)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();

@@ -29,7 +29,7 @@ API REST para gestão de uma clínica veterinária, construída em **Java 21 + S
 | Framework | Spring Boot 3.3 (Web, Data JPA, Security, Validation) |
 | Autenticação | JWT (io.jsonwebtoken / jjwt) |
 | Banco (dev/portfólio) | H2 em arquivo — zero configuração |
-| Banco (produção) | PostgreSQL |
+| Banco (produção) | PostgreSQL — instância gerenciada no Supabase (conexão via pooler de sessão) |
 | Documentação | springdoc-openapi (Swagger UI) |
 | Build | Maven |
 | Testes | JUnit 5, MockMvc, Spring Security Test |
@@ -65,7 +65,7 @@ Cada módulo segue o mesmo padrão: `Entity` → `Repository` (Spring Data JPA) 
 - **Regra de conflito de agenda**: ao criar/reagendar uma consulta, o serviço busca os agendamentos ativos do veterinário no mesmo dia e verifica sobreposição de intervalos (`scheduledAt` até `scheduledAt + durationMin`) em memória — simples de entender e testar, e evita depender de sintaxe de data específica de cada banco (H2 vs Postgres).
 - **`@PreAuthorize` por papel** nos controllers (ex: só `ADMIN`/`RECEPTIONIST` agendam consultas; só `VET`/`ADMIN` registram prontuários), demonstrando autorização granular além de "autenticado ou não".
 - **`GlobalExceptionHandler`** centraliza a tradução de exceções (validação, recurso não encontrado, conflito, credenciais inválidas) em respostas HTTP consistentes.
-- **Perfis Spring** (`dev`, `test`, `prod`) separam configuração de banco: H2 em arquivo para rodar localmente sem setup, H2 em memória para os testes, Postgres para produção/Docker.
+- **Perfis Spring** (`dev`, `test`, `prod`) separam configuração de banco: H2 em arquivo para rodar localmente sem setup, H2 em memória para os testes, Postgres para produção/Docker. Em produção o `prod` aponta para um Postgres gerenciado no Supabase via `DATABASE_URL` / `DATABASE_USERNAME` / `DATABASE_PASSWORD`.
 
 ## Como rodar localmente
 
@@ -82,9 +82,9 @@ Na primeira execução (banco vazio), o `DataSeeder` popula o banco com usuário
 
 | Papel | Email | Senha (dev) |
 |---|---|---|
-| ADMIN | admin@vetclinic.com | `admin123` |
-| VET | vet@vetclinic.com | `demo1234` |
-| RECEPTIONIST | recepcao@vetclinic.com | `demo1234` |
+| ADMIN | admin@vetclinic.com | `admin-dev-2026` |
+| VET | vet@vetclinic.com | `demo-dev-2026` |
+| RECEPTIONIST | recepcao@vetclinic.com | `demo-dev-2026` |
 
 Em produção (perfil `prod`), o boot exige `SEED_ADMIN_PASSWORD` e as contas VET/RECEPTIONIST **só são criadas se `SEED_DEMO_PASSWORD` for definida** — sem ela, apenas o admin é criado.
 
