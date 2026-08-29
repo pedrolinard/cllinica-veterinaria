@@ -1765,13 +1765,6 @@ function setupLogin() {
   const form = document.getElementById('login-form');
   const errorBox = document.getElementById('login-error');
 
-  document.querySelectorAll('.demo-creds div[data-email]').forEach((el) => {
-    el.addEventListener('click', () => {
-      document.getElementById('login-email').value = el.dataset.email;
-      document.getElementById('login-password').value = el.dataset.password;
-    });
-  });
-
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     errorBox.innerHTML = '';

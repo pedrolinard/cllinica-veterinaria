@@ -31,9 +31,11 @@ services:
       # antes de subir. Sem eles, o container sobe e a API falha o boot (JWT_SECRET)
       # ou recusa criar o admin de demonstração (SEED_ADMIN_PASSWORD).
       JWT_SECRET: ${JWT_SECRET:?defina JWT_SECRET em um arquivo .env antes de subir}
-      SEED_ENABLED: "true"
+      SEED_ENABLED: ${SEED_ENABLED:-true}
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-admin@vetclinic.com}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:?defina SEED_ADMIN_PASSWORD em um arquivo .env antes de subir}
+      # Vazio por padrão: as contas de demonstração VET/RECEPTIONIST só são criadas se você definir isto.
+      SEED_DEMO_PASSWORD: ${SEED_DEMO_PASSWORD:-}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8080}
       PORT: 8080
       # Lembrete de consulta por email: desligado por padrão. Para ligar, defina

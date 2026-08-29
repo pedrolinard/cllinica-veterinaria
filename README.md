@@ -78,13 +78,15 @@ mvn spring-boot:run
 
 A API sobe em `http://localhost:8080`. Documentação interativa em `http://localhost:8080/docs`.
 
-Na primeira execução, o `DataSeeder` popula o banco com usuários e dados de exemplo:
+Na primeira execução (banco vazio), o `DataSeeder` popula o banco com usuários e dados de exemplo. As senhas abaixo são **apenas os defaults de desenvolvimento local** (perfil `dev`) — configuráveis por `SEED_ADMIN_PASSWORD` / `SEED_DEMO_PASSWORD`:
 
-| Papel | Email | Senha |
+| Papel | Email | Senha (dev) |
 |---|---|---|
-| ADMIN | admin@vetclinic.com | admin123 |
-| VET | vet@vetclinic.com | vet12345 |
-| RECEPTIONIST | recepcao@vetclinic.com | recep1234 |
+| ADMIN | admin@vetclinic.com | `admin123` |
+| VET | vet@vetclinic.com | `demo1234` |
+| RECEPTIONIST | recepcao@vetclinic.com | `demo1234` |
+
+Em produção (perfil `prod`), o boot exige `SEED_ADMIN_PASSWORD` e as contas VET/RECEPTIONIST **só são criadas se `SEED_DEMO_PASSWORD` for definida** — sem ela, apenas o admin é criado.
 
 Use o endpoint `POST /api/auth/login` com um desses usuários para obter o token JWT e testar as rotas protegidas pelo Swagger (botão **Authorize**, formato `Bearer <token>`).
 

@@ -47,6 +47,13 @@ public class DataSeeder implements CommandLineRunner {
     @Value("${app.seed.admin-password:admin123}")
     private String adminPassword;
 
+    // Senha compartilhada pelas contas de demonstração (VET e RECEPTIONIST).
+    // Sem valor em produção (ver application-prod.yml): se ficar em branco, essas
+    // contas simplesmente não são criadas — evita deixar credencial conhecida viva
+    // num deploy real. Em dev, application-dev.yml define um valor fixo por conveniência.
+    @Value("${app.seed.demo-password:}")
+    private String demoPassword;
+
     @Override
     @Transactional
     public void run(String... args) {
@@ -63,29 +70,32 @@ public class DataSeeder implements CommandLineRunner {
 
         log.info("Nenhum usuário encontrado — populando banco com dados iniciais de demonstração...");
 
-        User admin = userRepository.save(User.builder()
+        userRepository.save(User.builder()
                 .name("Administrador")
                 .email(adminEmail)
                 .passwordHash(passwordEncoder.encode(adminPassword))
                 .role(Role.ADMIN)
                 .build());
 
-        User vet = userRepository.save(User.builder()
-                .name("Dra. Ana Souza")
-                .email("vet@vetclinic.com")
-                .passwordHash(passwordEncoder.encode("vet12345"))
-                .role(Role.VET)
-                .build());
+        boolean demoAccountsCreated = StringUtils.hasText(demoPassword);
+        if (demoAccountsCreated) {
+            userRepository.save(User.builder()
+                    .name("Dra. Ana Souza")
+                    .email("vet@vetclinic.com")
+                    .passwordHash(passwordEncoder.encode(demoPassword))
+                    .role(Role.VET)
+                    .build());
 
-        userRepository.save(User.builder()
-                .name("Carlos Recepção")
-                .email("recepcao@vetclinic.com")
-                .passwordHash(passwordEncoder.encode("recep1234"))
-                .role(Role.RECEPTIONIST)
-                .build());
+            userRepository.save(User.builder()
+                    .name("Carlos Recepção")
+                    .email("recepcao@vetclinic.com")
+                    .passwordHash(passwordEncoder.encode(demoPassword))
+                    .role(Role.RECEPTIONIST)
+                    .build());
+        }
 
         Client tutor = clientRepository.save(Client.builder()
-                .name("Pedro Linard")
+                .name("Marina Alves")
                 .email("tutor.demo@vetclinic.com")
                 .phone("(85) 99999-0000")
                 .address("Fortaleza, CE")
@@ -115,6 +125,11 @@ public class DataSeeder implements CommandLineRunner {
                 .build());
 
         log.info("Seed concluído. Usuário admin criado: {} (senha definida via SEED_ADMIN_PASSWORD).", adminEmail);
-        log.info("Usuário veterinário de exemplo criado: {} (ver README para a senha de demonstração).", vet.getEmail());
+        if (demoAccountsCreated) {
+            log.info("Contas de demonstração criadas (vet@ / recepcao@vetclinic.com) com a senha de SEED_DEMO_PASSWORD.");
+        } else {
+            log.info("SEED_DEMO_PASSWORD não definida — contas de demonstração (VET/RECEPTIONIST) não foram criadas. "
+                    + "Crie funcionários pelo painel de ADMIN quando precisar.");
+        }
     }
 }

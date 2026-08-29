@@ -21,6 +21,9 @@ app:
     # o DataSeeder falha o boot (ver DataSeeder.run) em vez de criar um admin
     # com a senha padrão do repositório.
     admin-password: ${SEED_ADMIN_PASSWORD:}
+    # Sem fallback: sem SEED_DEMO_PASSWORD, as contas vet@/recepcao@ não são
+    # criadas em produção (em vez de nascerem com uma senha fixa do código).
+    demo-password: ${SEED_DEMO_PASSWORD:}
   cors:
     # Sem fallback: domínio(s) do frontend em produção, separados por vírgula
     # (ex: https://meu-frontend.vercel.app). Vazio = nenhuma origem liberada.
