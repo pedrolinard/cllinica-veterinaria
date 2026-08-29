@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -74,6 +75,11 @@ public class UserService {
         user.setEmail(request.email());
         user.setRole(request.role());
 
+        if (previousRole != request.role()) {
+            // Encerra as sessões abertas com o papel antigo.
+            user.setTokensInvalidBefore(Instant.now());
+        }
+
         UserResponse response = UserResponse.from(userRepository.save(user));
         if (previousRole != request.role()) {
             auditService.record("User", id, AuditAction.UPDATE,
@@ -107,6 +113,9 @@ public class UserService {
         }
 
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        // Invalida qualquer token emitido com a senha antiga (ex: sessão de um
+        // invasor após o usuário perceber o comprometimento e trocar a senha).
+        user.setTokensInvalidBefore(Instant.now());
         userRepository.save(user);
     }
 

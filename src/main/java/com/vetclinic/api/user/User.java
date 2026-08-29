@@ -11,6 +11,8 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.experimental.SuperBuilder;
 
+import java.time.Instant;
+
 /**
  * Funcionário da clínica (administrador, veterinário ou recepcionista).
  * É também o "usuário" usado para autenticação na API.
@@ -35,4 +37,12 @@ public class User extends BaseEntity {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role;
+
+    /**
+     * Tokens emitidos antes deste instante são rejeitados. Atualizado quando o
+     * papel ou a senha do usuário mudam, encerrando as sessões antigas na hora.
+     * NULL = nunca invalidado.
+     */
+    @Column(name = "tokens_invalid_before")
+    private Instant tokensInvalidBefore;
 }

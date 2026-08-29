@@ -65,10 +65,6 @@ public class SecurityConfig {
             "/index.html",
             "/app/**",
             "/api/auth/login",
-            "/docs/**",
-            "/swagger-ui/**",
-            "/swagger-ui.html",
-            "/v3/api-docs/**",
             "/actuator/health",
             // Sem isso, um 403 lançado no nível de filtro (ex: a regra do /actuator/**
             // abaixo) gera um forward interno pro /error que — sem estar liberado —
@@ -89,10 +85,14 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     auth.requestMatchers(PUBLIC_ENDPOINTS).permitAll();
-                    // O console do H2 só é liberado no perfil dev — assim a regra não
-                    // sobrevive ao servlet, que também só existe em dev.
+                    // Swagger/OpenAPI e o console do H2 só ficam públicos em dev.
+                    // Em prod o springdoc é desligado (application-prod.yml) e o
+                    // console do H2 nem sequer é registrado.
                     if (devProfile) {
-                        auth.requestMatchers("/h2-console/**").permitAll();
+                        auth.requestMatchers(
+                                "/docs/**", "/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**",
+                                "/h2-console/**"
+                        ).permitAll();
                     }
                     // /actuator/health fica público (usado por health checks de infra); o
                     // resto do Actuator (métricas, env, etc.) expõe detalhes internos, então

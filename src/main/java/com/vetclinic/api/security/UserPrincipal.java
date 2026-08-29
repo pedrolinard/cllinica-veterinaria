@@ -6,6 +6,7 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +23,7 @@ public class UserPrincipal implements UserDetails {
     private final String email;
     private final String passwordHash;
     private final String role;
+    private final Instant tokensInvalidBefore;
 
     public UserPrincipal(User user) {
         this.id = user.getId();
@@ -29,6 +31,7 @@ public class UserPrincipal implements UserDetails {
         this.email = user.getEmail();
         this.passwordHash = user.getPasswordHash();
         this.role = user.getRole().name();
+        this.tokensInvalidBefore = user.getTokensInvalidBefore();
     }
 
     @Override

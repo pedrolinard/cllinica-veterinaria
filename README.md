@@ -18,7 +18,7 @@ API REST para gestão de uma clínica veterinária, construída em **Java 21 + S
 - **Auditoria**: log append-only de criação/alteração/exclusão de dados sensíveis (funcionários, consultas, prontuários, serviços), com quem fez, o quê e quando (`/api/audit-log`, tela "Auditoria" no painel).
 - **Observabilidade**: `/actuator/health` (público, para health check de infra), `/actuator/info` e `/actuator/metrics` (ADMIN); logs em JSON estruturado no perfil `prod`.
 - **CI**: GitHub Actions builda e roda a suíte de testes em todo push/PR para `main`.
-- **Documentação OpenAPI/Swagger** navegável em `/docs`.
+- **Documentação OpenAPI/Swagger** navegável em `/docs` (habilitada em `dev`; desligada em produção — ligue com `SPRINGDOC_ENABLED=true` para uma demo).
 - **Seed automático** de dados de exemplo ao subir a aplicação pela primeira vez.
 
 ## Stack
@@ -134,7 +134,7 @@ Os testes de integração usam `MockMvc` + H2 em memória (perfil `test`) e cobr
 | GET | `/actuator/health` | Health check | Público |
 | GET | `/actuator/info`, `/actuator/metrics` | Metadados e métricas da aplicação | ADMIN |
 
-Lista completa, com schemas de request/response, em `/docs`.
+Lista completa, com schemas de request/response, em `/docs` (ambiente `dev`).
 
 ## Possíveis evoluções
 

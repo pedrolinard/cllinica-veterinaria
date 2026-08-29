@@ -52,7 +52,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     && (jti == null || !revokedTokenRepository.existsById(jti))) {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
-                if (jwtService.isTokenValid(token, userDetails)) {
+                if (jwtService.isTokenValid(token, userDetails)
+                        && !invalidatedByPrivilegeChange(token, userDetails)) {
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails, null, userDetails.getAuthorities()
                     );
@@ -67,5 +68,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    /**
+     * Rejeita um token emitido antes de uma mudança de papel/senha do usuário
+     * (ver {@code User.tokensInvalidBefore}).
+     */
+    private boolean invalidatedByPrivilegeChange(String token, UserDetails userDetails) {
+        if (!(userDetails instanceof UserPrincipal principal) || principal.getTokensInvalidBefore() == null) {
+            return false;
+        }
+        return jwtService.extractIssuedAt(token).isBefore(principal.getTokensInvalidBefore());
     }
 }

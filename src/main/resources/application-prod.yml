@@ -4,11 +4,30 @@ spring:
     driver-class-name: org.postgresql.Driver
     username: ${DATABASE_USERNAME:vetclinic}
     password: ${DATABASE_PASSWORD:vetclinic}
+    hikari:
+      # O Postgres é acessado via pooler do Supabase, que tem teto de conexões.
+      # Poucas conexões, liberadas rápido quando ociosas.
+      maximum-pool-size: 5
+      minimum-idle: 1
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     # ddl-auto (validate) vem do application.yml base.
   flyway:
     locations: classpath:db/migration,classpath:db/migration-postgresql
+
+server:
+  # Atrás do proxy do Railway (TLS terminado lá): confia nos X-Forwarded-* para
+  # HSTS funcionar, o IP real do cliente aparecer no log e no throttle de login,
+  # e o esquema ser reconhecido como https.
+  forward-headers-strategy: framework
+
+springdoc:
+  # Swagger/OpenAPI desligados em produção (não há consumidor externo da API).
+  # Ligue com SPRINGDOC_ENABLED=true só para uma demo, se precisar.
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
 
 app:
   jwt:

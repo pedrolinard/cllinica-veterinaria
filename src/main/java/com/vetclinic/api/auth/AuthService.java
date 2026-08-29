@@ -23,9 +23,9 @@ public class AuthService {
     private final RevokedTokenRepository revokedTokenRepository;
     private final LoginAttemptService loginAttemptService;
 
-    public LoginResponse login(LoginRequest request) {
+    public LoginResponse login(LoginRequest request, String clientIp) {
         String key = request.email().trim().toLowerCase();
-        loginAttemptService.checkAllowed(key);
+        loginAttemptService.checkAllowed(key, clientIp);
 
         try {
             // Delega ao AuthenticationManager (usa o DaoAuthenticationProvider configurado),
@@ -33,7 +33,7 @@ public class AuthService {
             var authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.email(), request.password())
             );
-            loginAttemptService.registerSuccess(key);
+            loginAttemptService.registerSuccess(key, clientIp);
 
             UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
             String token = jwtService.generateToken(principal);
@@ -47,7 +47,7 @@ public class AuthService {
 
             return new LoginResponse(token, "Bearer", profile);
         } catch (BadCredentialsException ex) {
-            loginAttemptService.registerFailure(key);
+            loginAttemptService.registerFailure(key, clientIp);
             throw ex;
         }
     }

@@ -1823,8 +1823,11 @@ function openChangePasswordForm() {
     btn.disabled = true;
     try {
       await api('/api/users/me/password', { method: 'PATCH', body });
-      toast('Senha atualizada.');
+      // A troca de senha invalida o token atual no servidor — desloga e pede novo login.
       closeModal();
+      Store.clear();
+      renderRoot();
+      toast('Senha atualizada. Entre novamente com a nova senha.');
     } catch (err) {
       formError(modal.querySelector('#change-password-error'), err);
       btn.disabled = false;
