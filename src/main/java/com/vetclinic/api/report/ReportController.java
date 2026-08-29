@@ -17,49 +17,78 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.util.Locale;
 
 @RestController
 @RequestMapping("/api/reports")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "Reports", description = "Exportação de relatórios em CSV")
+@Tag(name = "Reports", description = "Exportação de relatórios em CSV ou PDF (parâmetro format)")
 public class ReportController {
 
     private static final MediaType CSV_UTF8 = new MediaType("text", "csv", StandardCharsets.UTF_8);
+    private static final byte[] UTF8_BOM = {(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
 
     private final ReportService reportService;
+    private final ReportPdfWriter reportPdfWriter;
 
     @GetMapping("/daily-agenda")
     @PreAuthorize("hasAnyRole('ADMIN', 'RECEPTIONIST')")
-    @Operation(summary = "Exporta a agenda de um dia (CSV)")
+    @Operation(summary = "Exporta a agenda de um dia (format=csv|pdf, padrão csv)")
     public ResponseEntity<byte[]> dailyAgenda(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            @RequestParam(defaultValue = "csv") String format
     ) {
-        return csvResponse(reportService.dailyAgendaCsv(date), "agenda-" + date + ".csv");
+        String basename = "agenda-" + date;
+        if (isPdf(format)) {
+            return pdfResponse(reportPdfWriter.dailyAgenda(date, reportService.dailyAgenda(date)), basename + ".pdf");
+        }
+        return csvResponse(reportService.dailyAgendaCsv(date), basename + ".csv");
     }
 
     @GetMapping("/billing")
     @PreAuthorize("hasRole('ADMIN')")
-    @Operation(summary = "Exporta o faturamento por serviço num período (CSV)")
+    @Operation(summary = "Exporta o faturamento por serviço num período (format=csv|pdf, padrão csv)")
     public ResponseEntity<byte[]> billing(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(defaultValue = "csv") String format
     ) {
-        return csvResponse(reportService.billingCsv(from, to), "faturamento-" + from + "_a_" + to + ".csv");
+        String basename = "faturamento-" + from + "_a_" + to;
+        if (isPdf(format)) {
+            return pdfResponse(reportPdfWriter.billing(reportService.billing(from, to)), basename + ".pdf");
+        }
+        return csvResponse(reportService.billingCsv(from, to), basename + ".csv");
+    }
+
+    private boolean isPdf(String format) {
+        String normalized = format == null ? "csv" : format.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "pdf" -> true;
+            case "csv", "" -> false;
+            default -> throw new IllegalArgumentException("Formato inválido: use 'csv' ou 'pdf'.");
+        };
     }
 
     private ResponseEntity<byte[]> csvResponse(String csv, String filename) {
         // BOM UTF-8 para o Excel reconhecer acentuação corretamente ao abrir o CSV.
-        byte[] bom = new byte[]{(byte) 0xEF, (byte) 0xBB, (byte) 0xBF};
         byte[] body = csv.getBytes(StandardCharsets.UTF_8);
-        byte[] withBom = new byte[bom.length + body.length];
-        System.arraycopy(bom, 0, withBom, 0, bom.length);
-        System.arraycopy(body, 0, withBom, bom.length, body.length);
+        byte[] withBom = new byte[UTF8_BOM.length + body.length];
+        System.arraycopy(UTF8_BOM, 0, withBom, 0, UTF8_BOM.length);
+        System.arraycopy(body, 0, withBom, UTF8_BOM.length, body.length);
 
+        return fileResponse(withBom, CSV_UTF8, filename);
+    }
+
+    private ResponseEntity<byte[]> pdfResponse(byte[] pdf, String filename) {
+        return fileResponse(pdf, MediaType.APPLICATION_PDF, filename);
+    }
+
+    private ResponseEntity<byte[]> fileResponse(byte[] body, MediaType contentType, String filename) {
         return ResponseEntity.ok()
-                .contentType(CSV_UTF8)
+                .contentType(contentType)
                 .header(HttpHeaders.CONTENT_DISPOSITION,
                         ContentDisposition.attachment().filename(filename, StandardCharsets.UTF_8).build().toString())
-                .body(withBom);
+                .body(body);
     }
 }

@@ -12,7 +12,7 @@ API REST para gestão de uma clínica veterinária, construída em **Java 21 + S
 - **Dashboard** com estatísticas agregadas (contagens, consultas por status, pets por espécie) calculadas no banco.
 - **Busca por nome** em clientes e pets (`?q=`), usada pelos campos de busca do painel em vez de carregar a lista inteira.
 - **Anexos de prontuário**: upload/download de exames e fotos (imagem ou PDF, até 5MB).
-- **Relatórios em CSV**: agenda do dia e faturamento por serviço num período.
+- **Relatórios em CSV ou PDF**: agenda do dia e faturamento por serviço num período — `?format=csv` (padrão) ou `?format=pdf` para um documento formatado para impressão.
 - **Lembrete de consulta por email** na véspera — desligado por padrão, liga com `REMINDERS_ENABLED=true` + SMTP configurado.
 - **Troca de senha self-service**, sem depender do ADMIN.
 - **Auditoria**: log append-only de criação/alteração/exclusão de dados sensíveis (funcionários, consultas, prontuários, serviços), com quem fez, o quê e quando (`/api/audit-log`, tela "Auditoria" no painel).
@@ -126,8 +126,8 @@ Os testes de integração usam `MockMvc` + H2 em memória (perfil `test`) e cobr
 | CRUD | `/api/medical-records/{id}/attachments` | Anexos do prontuário | Leitura: autenticado · Upload: VET/ADMIN · Exclusão: ADMIN |
 | CRUD | `/api/services` | Catálogo de serviços | Leitura: autenticado · Escrita: ADMIN |
 | GET | `/api/dashboard/stats` | Estatísticas agregadas do painel | Autenticado |
-| GET | `/api/reports/daily-agenda` | Agenda de um dia (CSV) | ADMIN/RECEPTIONIST |
-| GET | `/api/reports/billing` | Faturamento por serviço num período (CSV) | ADMIN |
+| GET | `/api/reports/daily-agenda` | Agenda de um dia (`?format=csv\|pdf`) | ADMIN/RECEPTIONIST |
+| GET | `/api/reports/billing` | Faturamento por serviço num período (`?format=csv\|pdf`) | ADMIN |
 | GET | `/api/audit-log` | Trilha de auditoria (filtro `?entityType=`) | ADMIN |
 | GET | `/actuator/health` | Health check | Público |
 | GET | `/actuator/info`, `/actuator/metrics` | Metadados e métricas da aplicação | ADMIN |
@@ -136,7 +136,6 @@ Lista completa, com schemas de request/response, em `/docs`.
 
 ## Possíveis evoluções
 
-- Exportação de relatórios também em PDF (hoje só CSV).
 - Portal do tutor: agendar e ver o prontuário do próprio pet.
 - Multi-clínica, se o modelo de negócio pedir.
 - Testes unitários adicionais para `AppointmentService` isolando o repositório com mocks (Mockito), complementando os testes de integração já existentes.

@@ -11,14 +11,19 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
- * Gera relatórios em CSV a partir dos dados já existentes — sem depender de
+ * Gera relatórios a partir dos dados já existentes — sem depender de
  * ferramenta externa de BI, suficiente para o volume de uma clínica.
+ *
+ * <p>Os dados são montados uma única vez ({@link #dailyAgenda} / {@link #billing})
+ * e depois serializados para o formato pedido: CSV (planilha) aqui mesmo,
+ * ou PDF (documento para impressão) em {@link ReportPdfWriter}.
  */
 @Service
 @RequiredArgsConstructor
@@ -29,35 +34,51 @@ public class ReportService {
 
     private final AppointmentRepository appointmentRepository;
 
-    public String dailyAgendaCsv(LocalDate date) {
+    /** Uma linha da agenda do dia, já com os campos resolvidos para texto. */
+    public record AgendaEntry(String time, String pet, String tutor, String vet,
+                              String status, String service, String reason) {
+    }
+
+    /** Uma linha do faturamento: total por serviço num período. */
+    public record BillingLine(String service, long quantity, long unitPriceCents, long subtotalCents) {
+    }
+
+    /** Faturamento consolidado de um período. */
+    public record BillingReport(LocalDate from, LocalDate to, List<BillingLine> lines, long totalCents) {
+    }
+
+    // ------------------------------------------------------------------ dados
+
+    public List<AgendaEntry> dailyAgenda(LocalDate date) {
         LocalDateTime dayStart = date.atStartOfDay();
         LocalDateTime dayEnd = dayStart.plusDays(1);
 
         List<Appointment> appointments = appointmentRepository
                 .findByStatusNotAndScheduledAtBetweenOrderByScheduledAt(AppointmentStatus.CANCELED, dayStart, dayEnd);
 
-        StringBuilder csv = new StringBuilder();
-        csv.append("Hora,Pet,Tutor,Veterinario,Status,Servico,Motivo\n");
+        List<AgendaEntry> entries = new ArrayList<>(appointments.size());
         for (Appointment a : appointments) {
-            csv.append(TIME_FORMAT.format(a.getScheduledAt())).append(',')
-                    .append(csvField(a.getPet().getName())).append(',')
-                    .append(csvField(a.getPet().getClient().getName())).append(',')
-                    .append(csvField(a.getVet().getName())).append(',')
-                    .append(csvField(a.getStatus().name())).append(',')
-                    .append(csvField(a.getService() != null ? a.getService().getName() : "")).append(',')
-                    .append(csvField(a.getReason())).append('\n');
+            entries.add(new AgendaEntry(
+                    TIME_FORMAT.format(a.getScheduledAt()),
+                    a.getPet().getName(),
+                    a.getPet().getClient().getName(),
+                    a.getVet().getName(),
+                    a.getStatus().name(),
+                    a.getService() != null ? a.getService().getName() : "",
+                    a.getReason() != null ? a.getReason() : ""
+            ));
         }
-        return csv.toString();
+        return entries;
     }
 
-    public String billingCsv(LocalDate from, LocalDate to) {
+    public BillingReport billing(LocalDate from, LocalDate to) {
         LocalDateTime rangeStart = from.atStartOfDay();
         LocalDateTime rangeEnd = to.plusDays(1).atStartOfDay();
 
         List<Appointment> completed = appointmentRepository
                 .findByStatusAndScheduledAtBetween(AppointmentStatus.COMPLETED, rangeStart, rangeEnd);
 
-        Map<String, long[]> totalsByService = new LinkedHashMap<>(); // [quantidade, precoCentavosUnitario, subtotalCentavos]
+        Map<String, long[]> totalsByService = new LinkedHashMap<>(); // nome -> [quantidade, precoUnitarioCentavos, subtotalCentavos]
         for (Appointment a : completed) {
             ClinicService service = a.getService();
             String key = service != null ? service.getName() : "Sem serviço vinculado";
@@ -68,25 +89,48 @@ public class ReportService {
             totals[2] += unitPrice;
         }
 
-        StringBuilder csv = new StringBuilder();
-        csv.append("Servico,Quantidade,PrecoUnitario,Subtotal\n");
-        long grandTotal = 0;
-        List<Map.Entry<String, long[]>> rows = totalsByService.entrySet().stream()
+        List<BillingLine> lines = totalsByService.entrySet().stream()
                 .sorted(Comparator.comparing(e -> e.getKey().toLowerCase()))
+                .map(e -> new BillingLine(e.getKey(), e.getValue()[0], e.getValue()[1], e.getValue()[2]))
                 .toList();
-        for (Map.Entry<String, long[]> entry : rows) {
-            long[] totals = entry.getValue();
-            csv.append(csvField(entry.getKey())).append(',')
-                    .append(totals[0]).append(',')
-                    .append(formatCents(totals[1])).append(',')
-                    .append(formatCents(totals[2])).append('\n');
-            grandTotal += totals[2];
+        long grandTotal = lines.stream().mapToLong(BillingLine::subtotalCents).sum();
+
+        return new BillingReport(from, to, lines, grandTotal);
+    }
+
+    // -------------------------------------------------------------------- CSV
+
+    public String dailyAgendaCsv(LocalDate date) {
+        StringBuilder csv = new StringBuilder();
+        csv.append("Hora,Pet,Tutor,Veterinario,Status,Servico,Motivo\n");
+        for (AgendaEntry e : dailyAgenda(date)) {
+            csv.append(csvField(e.time())).append(',')
+                    .append(csvField(e.pet())).append(',')
+                    .append(csvField(e.tutor())).append(',')
+                    .append(csvField(e.vet())).append(',')
+                    .append(csvField(e.status())).append(',')
+                    .append(csvField(e.service())).append(',')
+                    .append(csvField(e.reason())).append('\n');
         }
-        csv.append(csvField("TOTAL")).append(",,,").append(formatCents(grandTotal)).append('\n');
         return csv.toString();
     }
 
-    private String formatCents(long cents) {
+    public String billingCsv(LocalDate from, LocalDate to) {
+        BillingReport report = billing(from, to);
+
+        StringBuilder csv = new StringBuilder();
+        csv.append("Servico,Quantidade,PrecoUnitario,Subtotal\n");
+        for (BillingLine line : report.lines()) {
+            csv.append(csvField(line.service())).append(',')
+                    .append(line.quantity()).append(',')
+                    .append(formatCents(line.unitPriceCents())).append(',')
+                    .append(formatCents(line.subtotalCents())).append('\n');
+        }
+        csv.append(csvField("TOTAL")).append(",,,").append(formatCents(report.totalCents())).append('\n');
+        return csv.toString();
+    }
+
+    static String formatCents(long cents) {
         return String.format("%d.%02d", cents / 100, Math.abs(cents % 100));
     }
 

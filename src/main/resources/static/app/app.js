@@ -1500,7 +1500,7 @@ async function viewReports(main) {
 
   main.innerHTML = `
     <div class="view-header">
-      <div><h2>Relatórios</h2><p>Exportações em CSV.</p></div>
+      <div><h2>Relatórios</h2><p>Exportações em CSV (planilha) ou PDF (documento para impressão).</p></div>
     </div>
 
     <div class="report-card">
@@ -1508,7 +1508,8 @@ async function viewReports(main) {
       <p class="text-dim">Lista as consultas de uma data (exceto canceladas), com pet, tutor, veterinário e serviço.</p>
       <div class="toolbar">
         <input type="date" id="report-agenda-date" value="${today}" />
-        <button class="btn btn-primary" id="report-agenda-btn">Baixar CSV</button>
+        <button class="btn btn-primary" id="report-agenda-csv-btn">Baixar CSV</button>
+        <button class="btn" id="report-agenda-pdf-btn">Baixar PDF</button>
       </div>
     </div>
 
@@ -1519,19 +1520,17 @@ async function viewReports(main) {
         <div class="toolbar">
           <input type="date" id="report-billing-from" value="${today}" />
           <input type="date" id="report-billing-to" value="${today}" />
-          <button class="btn btn-primary" id="report-billing-btn">Baixar CSV</button>
+          <button class="btn btn-primary" id="report-billing-csv-btn">Baixar CSV</button>
+          <button class="btn" id="report-billing-pdf-btn">Baixar PDF</button>
         </div>
       </div>
     ` : ''}
   `;
 
-  document.getElementById('report-agenda-btn').onclick = async (e) => {
-    const date = document.getElementById('report-agenda-date').value;
-    if (!date) return;
-    const btn = e.target;
+  const runDownload = async (btn, fn) => {
     btn.disabled = true;
     try {
-      await downloadFile('/api/reports/daily-agenda', { date }, `agenda-${date}.csv`);
+      await fn();
     } catch (err) {
       toast(apiErrorMessage(err), 'error');
     } finally {
@@ -1539,22 +1538,26 @@ async function viewReports(main) {
     }
   };
 
-  const billingBtn = document.getElementById('report-billing-btn');
-  if (billingBtn) {
-    billingBtn.onclick = async (e) => {
+  const agendaDownload = (format) => async (e) => {
+    const date = document.getElementById('report-agenda-date').value;
+    if (!date) return;
+    await runDownload(e.target, () => downloadFile(
+      '/api/reports/daily-agenda', { date, format }, `agenda-${date}.${format}`));
+  };
+  document.getElementById('report-agenda-csv-btn').onclick = agendaDownload('csv');
+  document.getElementById('report-agenda-pdf-btn').onclick = agendaDownload('pdf');
+
+  const billingCsvBtn = document.getElementById('report-billing-csv-btn');
+  if (billingCsvBtn) {
+    const billingDownload = (format) => async (e) => {
       const from = document.getElementById('report-billing-from').value;
       const to = document.getElementById('report-billing-to').value;
       if (!from || !to) return;
-      const btn = e.target;
-      btn.disabled = true;
-      try {
-        await downloadFile('/api/reports/billing', { from, to }, `faturamento-${from}_a_${to}.csv`);
-      } catch (err) {
-        toast(apiErrorMessage(err), 'error');
-      } finally {
-        btn.disabled = false;
-      }
+      await runDownload(e.target, () => downloadFile(
+        '/api/reports/billing', { from, to, format }, `faturamento-${from}_a_${to}.${format}`));
     };
+    billingCsvBtn.onclick = billingDownload('csv');
+    document.getElementById('report-billing-pdf-btn').onclick = billingDownload('pdf');
   }
 }
 
