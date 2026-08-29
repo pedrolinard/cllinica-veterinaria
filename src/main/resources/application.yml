@@ -38,10 +38,10 @@ app:
   seed:
     enabled: ${SEED_ENABLED:true}
     admin-email: ${SEED_ADMIN_EMAIL:admin@vetclinic.com}
-    admin-password: ${SEED_ADMIN_PASSWORD:admin123}
+    admin-password: ${SEED_ADMIN_PASSWORD:admin-dev-2026}
     # Senha das contas de demonstração VET/RECEPTIONIST. Default só serve para dev
     # local; application-prod.yml zera isso, e sem valor essas contas não são criadas.
-    demo-password: ${SEED_DEMO_PASSWORD:demo1234}
+    demo-password: ${SEED_DEMO_PASSWORD:demo-dev-2026}
   cors:
     # "*" é conveniente em dev/test; em produção, defina CORS_ALLOWED_ORIGINS com o(s)
     # domínio(s) reais do frontend (ver application-prod.yml).

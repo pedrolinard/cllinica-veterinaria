@@ -19,7 +19,9 @@ import java.util.List;
 import java.util.UUID;
 
 /**
- * Anexos (exames, fotos, laudos) de um prontuário médico.
+ * Anexos (exames, fotos, laudos) de um prontuário médico. Todo o acesso —
+ * inclusive listar e baixar — é restrito a VET e ADMIN: são dados clínicos
+ * sensíveis que a recepção não precisa ver (o resumo do prontuário, sim).
  */
 @RestController
 @RequestMapping("/api/medical-records")
@@ -40,12 +42,14 @@ public class MedicalRecordAttachmentController {
     }
 
     @GetMapping("/{recordId}/attachments")
+    @PreAuthorize("hasAnyRole('VET', 'ADMIN')")
     @Operation(summary = "Lista os anexos de um prontuário")
     public ResponseEntity<List<MedicalRecordAttachmentResponse>> list(@PathVariable UUID recordId) {
         return ResponseEntity.ok(attachmentService.findByRecord(recordId));
     }
 
     @GetMapping("/attachments/{id}/download")
+    @PreAuthorize("hasAnyRole('VET', 'ADMIN')")
     @Operation(summary = "Baixa o conteúdo de um anexo")
     public ResponseEntity<byte[]> download(@PathVariable UUID id) {
         MedicalRecordAttachment attachment = attachmentService.getOrThrow(id);

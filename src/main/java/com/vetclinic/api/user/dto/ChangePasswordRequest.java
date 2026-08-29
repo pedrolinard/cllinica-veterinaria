@@ -8,7 +8,7 @@ public record ChangePasswordRequest(
         String currentPassword,
 
         @NotBlank(message = "Nova senha é obrigatória.")
-        @Size(min = 6, message = "Nova senha deve ter ao menos 6 caracteres.")
+        @Size(min = 10, max = 72, message = "Nova senha deve ter entre 10 e 72 caracteres.")
         String newPassword
 ) {
 }

@@ -14,3 +14,7 @@ app:
     secret: segredo-de-teste-nao-usar-em-producao-1234567890
   seed:
     enabled: false
+  security:
+    # BCrypt rápido: os testes não medem força de hash, e custo 12 somaria
+    # segundos à suíte inteira.
+    bcrypt-strength: 4

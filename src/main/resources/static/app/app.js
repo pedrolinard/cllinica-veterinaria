@@ -154,6 +154,9 @@ const ROLES = {
   appointmentsStatus: ['ADMIN', 'RECEPTIONIST', 'VET'],
   medicalRecordsWrite: ['ADMIN', 'VET'],
   medicalRecordsDelete: ['ADMIN'],
+  // Anexos (exames/laudos) são só para quem trata o caso; a recepção vê o
+  // resumo do prontuário mas não os arquivos. Espelha o back-end.
+  attachmentsView: ['ADMIN', 'VET'],
   servicesWrite: ['ADMIN'],
   usersWrite: ['ADMIN'],
 };
@@ -1081,6 +1084,7 @@ async function loadMedicalRecords(pets) {
   const page = await api('/api/medical-records', { params: { petId: recordsState.petId, page: recordsState.page } });
   const canWrite = hasRole(ROLES.medicalRecordsWrite);
   const canDelete = hasRole(ROLES.medicalRecordsDelete);
+  const canAttachments = hasRole(ROLES.attachmentsView);
   const showActions = canWrite || canDelete;
 
   if (page.content.length === 0) {
@@ -1090,7 +1094,7 @@ async function loadMedicalRecords(pets) {
 
   container.innerHTML = `
     <table>
-      <thead><tr><th>Data</th><th>Diagnóstico</th><th>Peso (kg)</th><th>Vacinas</th><th>Prescrições</th><th>Anexos</th>${showActions ? '<th>Ações</th>' : ''}</tr></thead>
+      <thead><tr><th>Data</th><th>Diagnóstico</th><th>Peso (kg)</th><th>Vacinas</th><th>Prescrições</th>${canAttachments ? '<th>Anexos</th>' : ''}${showActions ? '<th>Ações</th>' : ''}</tr></thead>
       <tbody>
         ${page.content.map((r) => `
           <tr data-id="${r.id}">
@@ -1099,7 +1103,7 @@ async function loadMedicalRecords(pets) {
             <td>${r.weightKg ?? '—'}</td>
             <td>${escapeHtml(r.vaccines || '—')}</td>
             <td>${escapeHtml(r.prescriptions || '—')}</td>
-            <td><button class="btn btn-secondary btn-sm" data-action="attachments">Ver anexos</button></td>
+            ${canAttachments ? '<td><button class="btn btn-secondary btn-sm" data-action="attachments">Ver anexos</button></td>' : ''}
             ${showActions ? `<td class="row-actions">
               ${canWrite ? '<button class="btn btn-secondary btn-sm" data-action="edit">Editar</button>' : ''}
               ${canDelete ? '<button class="btn btn-danger btn-sm" data-action="delete">Excluir</button>' : ''}
